@@ -1093,7 +1093,7 @@ def calendar_page(request: Request):
         <div class="cal-time">{e['display']}</div>
       </div>
     </div>""" for e in events) or '<div class="empty-state">No upcoming events</div>'
-    book_url = "http://127.0.0.1:8000/book"
+    book_url = "https://app.lumeraautomation.com/book"
     content = f"""
     <div class="page-hdr"><div>
       <div class="page-title">Calendar</div>
@@ -1431,7 +1431,7 @@ def bookings_page(request: Request):
           <td style="font-size:11px;color:var(--muted)">{b.get('created_at','')[:10]}</td>
         </tr>"""
 
-    book_url="http://127.0.0.1:8000/book"
+    book_url="https://app.lumeraautomation.com/book"
     content = f"""
     <div class="page-hdr">
       <div><div class="page-title">Bookings</div>
@@ -2138,7 +2138,7 @@ Write a short personalised cold outreach email:
 
 Rules: Address by first name if known. Subject under 10 words specific to their problem.
 Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
-CTA: free 15-min call at http://127.0.0.1:8000/book
+CTA: free 15-min call at https://app.lumeraautomation.com/book
 Sign off: Kory, Lumera Automation. No "I hope this finds you well".
 Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
     try:
@@ -2263,7 +2263,7 @@ Write a short personalised cold outreach email:
 
 Rules: Address by first name if known. Subject under 10 words specific to their problem.
 Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
-CTA: free 15-min call at http://127.0.0.1:8000/book
+CTA: free 15-min call at https://app.lumeraautomation.com/book
 Sign off: Kory, Lumera Automation. No "I hope this finds you well".
 Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
         try:
@@ -2303,7 +2303,7 @@ async def run_followups():
         prompt=f"""Write a short {label} email to {lead['business']} who didn't reply to our first outreach.
 Problem: {lead['problem']} | Niche: {lead['niche']}
 #{new_step-1} of 2. 2 paragraphs max. Friendly, not pushy. Reference previous outreach.
-CTA: book at http://127.0.0.1:8000/book. Sign off: Kory, Lumera Automation.
+CTA: book at https://app.lumeraautomation.com/book. Sign off: Kory, Lumera Automation.
 Return ONLY JSON: {{"subject":"...","body":"..."}}"""
         try:
             res=client.chat.completions.create(model="gpt-4o-mini",
