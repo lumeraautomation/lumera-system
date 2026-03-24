@@ -8,3 +8,4 @@ daily_leads/
 logs/
 *.log
 .DS_Store
+config.env
