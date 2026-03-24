@@ -1656,7 +1656,7 @@ def book_page():
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Book a Free Strategy Call · Lumera</title>
+<title>Get Started · Lumera</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <style>
@@ -2138,7 +2138,7 @@ Write a short personalised cold outreach email:
 
 Rules: Address by first name if known. Subject under 10 words specific to their problem.
 Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
-CTA: free 15-min call at https://app.lumeraautomation.com/book
+CTA: get started at https://app.lumeraautomation.com/book
 Sign off: Kory, Lumera Automation. No "I hope this finds you well".
 Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
     try:
@@ -2263,7 +2263,7 @@ Write a short personalised cold outreach email:
 
 Rules: Address by first name if known. Subject under 10 words specific to their problem.
 Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
-CTA: free 15-min call at https://app.lumeraautomation.com/book
+CTA: get started at https://app.lumeraautomation.com/book
 Sign off: Kory, Lumera Automation. No "I hope this finds you well".
 Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
         try:
