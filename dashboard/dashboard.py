@@ -72,6 +72,11 @@ def init_db():
             contact TEXT, email TEXT, value REAL DEFAULT 0,
             stage TEXT DEFAULT 'prospect', notes TEXT,
             created_at TEXT NOT NULL, updated_at TEXT)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT,
+            business TEXT, niche TEXT, challenge TEXT, notes TEXT,
+            status TEXT DEFAULT 'new', created_at TEXT NOT NULL)""")
         try:
             conn.execute("ALTER TABLE bookings ADD COLUMN meet_link TEXT")
         except: pass
@@ -267,10 +272,11 @@ NAV_SECTIONS = [
         ("calendar",  "fa-calendar-days",  "Calendar"),
     ]),
     ("SYSTEM", [
-        ("system",    "fa-gear",           "System"),
-        ("team",      "fa-users",          "Team"),
-        ("revenue",   "fa-dollar-sign",    "Revenue"),
-        ("bookings",  "fa-calendar-check", "Bookings"),
+        ("system",       "fa-gear",           "System"),
+        ("team",         "fa-users",          "Team"),
+        ("revenue",      "fa-dollar-sign",    "Revenue"),
+        ("bookings",     "fa-calendar-check", "Bookings"),
+        ("applications", "fa-inbox",          "Applications"),
     ]),
 ]
 
@@ -2027,7 +2033,87 @@ async def book_submit(request: Request):
         except Exception as e:
             print(f"Confirmation email failed: {{e}}")
 
+    # Save to applications DB
+    import sqlite3 as _sq3
+    with _sq3.connect(DB_PATH) as _conn:
+        _conn.execute("""INSERT INTO applications(name,email,phone,business,niche,challenge,notes,status,created_at)
+            VALUES(?,?,?,?,?,?,?,'new',?)""",
+            (name,email,phone,business,niche,challenge,notes,datetime.now().isoformat()))
+        _conn.commit()
+
     return JSONResponse({{"ok": True}})
+
+
+# ─────────────────────────────────────────────
+# APPLICATIONS
+# ─────────────────────────────────────────────
+@app.get("/applications", response_class=HTMLResponse)
+def applications_page(request: Request):
+    user = get_current_user(request)
+    if not user: return RedirectResponse("/login")
+
+    apps = db_query("SELECT * FROM applications ORDER BY created_at DESC")
+    total = len(apps)
+    new_count = sum(1 for a in apps if a.get("status","new") == "new")
+
+    async def mark_contacted(app_id):
+        db_run("UPDATE applications SET status='contacted' WHERE id=?", (app_id,))
+
+    rows = ""
+    for a in apps:
+        status = a.get("status","new")
+        badge_cls = "b-active" if status == "contacted" else "b-sent"
+        rows += f"""<tr>
+          <td class="bold">{a.get('name','—')}</td>
+          <td><a href="mailto:{a.get('email','')}" style="font-size:12px">{a.get('email','—')}</a></td>
+          <td style="font-size:12px;color:rgba(255,255,255,.7)">{a.get('phone','—') or '—'}</td>
+          <td style="font-size:12px;color:rgba(255,255,255,.7)">{a.get('business','—') or '—'}</td>
+          <td style="font-size:12px;color:rgba(255,255,255,.7)">{a.get('niche','—')}</td>
+          <td style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{a.get('challenge','')}">{a.get('challenge','—')}</td>
+          <td style="font-size:11px;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{a.get('notes','')}">{a.get('notes','—') or '—'}</td>
+          <td><span class="badge {badge_cls}">{status}</span></td>
+          <td style="font-size:11px;color:var(--muted)">{a.get('created_at','')[:10]}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <a href="mailto:{a.get('email','')}" class="btn btn-primary btn-sm">Reply</a>
+              {"" if status == "contacted" else f'<button class="btn btn-ghost btn-sm" onclick="markContacted({a['id']})">Mark Done</button>'}
+            </div>
+          </td>
+        </tr>"""
+
+    content = f"""
+    <div class="page-hdr">
+      <div><div class="page-title">Applications</div>
+      <div class="page-sub">Strategy call form submissions from your booking page</div></div>
+    </div>
+    <div class="metrics-grid">
+      {mcard('<i class="fa-solid fa-inbox"></i>','Total Applications',total)}
+      {mcard('<i class="fa-solid fa-bell"></i>','New — Needs Reply',new_count,'','linear-gradient(135deg,#f59e0b,#f97316)')}
+      {mcard('<i class="fa-solid fa-circle-check"></i>','Contacted',total-new_count,'','linear-gradient(135deg,#22c55e,#16a34a)')}
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">All Applications</div></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th>Name</th><th>Email</th><th>Phone</th><th>Business</th>
+          <th>Niche</th><th>Challenge</th><th>Notes</th><th>Status</th><th>Date</th><th>Action</th>
+        </tr></thead>
+        <tbody>{rows if rows else '<tr><td colspan="10" class="empty-state">No applications yet. Share your booking page link to start getting submissions.</td></tr>'}</tbody>
+      </table></div>
+    </div>
+    <script>
+    async function markContacted(id){{
+      await fetch('/api/applications/'+id+'/contacted',{{method:'POST'}});
+      toast('Marked as contacted','ok');
+      setTimeout(()=>location.reload(),600);
+    }}
+    </script>"""
+    return HTMLResponse(shell(content, "applications", user))
+
+@app.post("/api/applications/{app_id}/contacted")
+async def mark_app_contacted(app_id: int):
+    db_run("UPDATE applications SET status='contacted' WHERE id=?", (app_id,))
+    return JSONResponse({"ok": True})
 
 
 # ─────────────────────────────────────────────
