@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lumera Client Dashboard</title>
+    <style>
+        body { font-family: sans-serif; background-color: #111; color: #fff; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+        th { background-color: #222; }
+        tr:nth-child(even) { background-color: #1a1a1a; }
+    </style>
+</head>
+<body>
+    <h1>Lumera Client Dashboard</h1>
+    <label for="niche">Select Niche:</label>
+    <select id="niche">
+        <option value="medspa_Nashville_TN">Medspa Nashville</option>
+        <option value="roofing_Nashville_TN">Roofing Nashville</option>
+        <option value="dentists_Nashville_TN">Dentists Nashville</option>
+        <option value="chiropractors_Nashville_TN">Chiropractors Nashville</option>
+    </select>
+    <button onclick="loadLeads()">Load Leads</button>
+
+    <table id="leadsTable">
+        <thead>
+            <tr>
+                <th>Name</th><th>City</th><th>Website</th><th>Problem</th><th>Email</th><th>Score</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        async function loadLeads() {
+            const niche = document.getElementById("niche").value;
+            const res = await fetch(`/leads/${niche}`);
+            const data = await res.json();
+            const tbody = document.querySelector("#leadsTable tbody");
+            tbody.innerHTML = "";
+            data.forEach(lead => {
+                const row = `<tr>
+                    <td>${lead.Name}</td>
+                    <td>${lead.City}</td>
+                    <td>${lead.Website}</td>
+                    <td>${lead.Problem}</td>
+                    <td>${lead.Email}</td>
+                    <td>${lead.Score}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+    </script>
+</body>
+</html>

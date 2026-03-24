@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+outreach.db
+daily_leads/
+logs/
+*.log
+.DS_Store
