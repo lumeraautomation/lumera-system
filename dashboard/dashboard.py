@@ -1644,14 +1644,7 @@ def team_page(request: Request):
 # ─────────────────────────────────────────────
 @app.get("/book", response_class=HTMLResponse)
 def book_page():
-    slots = get_available_slots(7)
-    slots_html = "".join(
-        f'<div class="slot" data-start="{s["start"]}" onclick="pickSlot(this)">{s["display"]}</div>'
-        for s in slots
-    ) if slots else '<p style="color:var(--muted);font-size:13px;padding:20px 0">No available slots right now. Email us at kory@lumeraautomation.com</p>'
-
     NOISE_URL = f"{NOISE_SVG}"
-
     return HTMLResponse(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1667,8 +1660,6 @@ html{{scroll-behavior:smooth;}}
 body{{font-family:var(--font);background:var(--black);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;}}
 body::before{{content:'';position:fixed;inset:0;background-image:url("{NOISE_URL}");opacity:0.025;pointer-events:none;z-index:9999;}}
 body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,0.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}}
-
-/* NAVBAR */
 .navbar{{position:fixed;top:16px;left:50%;transform:translateX(-50%);width:92%;max-width:1100px;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:rgba(15,15,15,0.75);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:16px;box-shadow:0 4px 32px rgba(0,0,0,0.4);z-index:1000;transition:background 0.3s;}}
 .navbar.scrolled{{background:rgba(10,10,10,0.92);}}
 .nav-logo{{display:flex;align-items:center;gap:10px;text-decoration:none;}}
@@ -1676,14 +1667,10 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
 .nav-logo-text{{font-size:17px;font-weight:700;color:var(--text);}}
 .nav-back{{font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;padding:6px 14px;border:1px solid var(--border-hover);border-radius:8px;transition:all 0.2s;}}
 .nav-back:hover{{color:var(--text);border-color:rgba(255,255,255,0.3);}}
-
-/* LAYOUT */
 .page{{min-height:100vh;display:grid;grid-template-columns:1fr 1fr;position:relative;z-index:1;padding-top:88px;}}
-
-/* LEFT */
 .left{{padding:72px 56px 64px;display:flex;flex-direction:column;justify-content:center;}}
 .page-badge{{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-hover);border-radius:100px;padding:6px 16px;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:28px;letter-spacing:0.5px;text-transform:uppercase;width:fit-content;animation:badgeFloat 3s ease-in-out infinite;}}
-.page-badge .live-dot{{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite;}}
+.live-dot{{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite;}}
 @keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:0.4}}}}
 @keyframes badgeFloat{{0%,100%{{transform:translateY(0)}}50%{{transform:translateY(-4px)}}}}
 @keyframes gradShift{{0%{{background-position:0% 50%}}50%{{background-position:100% 50%}}100%{{background-position:0% 50%}}}}
@@ -1699,13 +1686,9 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
 .what-list{{display:flex;flex-direction:column;gap:10px;animation:heroIn 0.8s ease 0.55s both;}}
 .what-item{{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted);font-weight:500;}}
 .what-item i{{color:var(--indigo);font-size:12px;width:16px;flex-shrink:0;}}
-
-/* RIGHT */
 .right{{padding:72px 48px 64px;display:flex;flex-direction:column;justify-content:center;}}
 .form-card{{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 36px;box-shadow:0 24px 80px rgba(0,0,0,0.4);animation:heroIn 0.8s ease 0.3s both;}}
-
-/* STEP BAR */
-.step-bar{{display:flex;align-items:center;gap:0;margin-bottom:20px;}}
+.step-bar{{display:flex;align-items:center;margin-bottom:20px;}}
 .step-dot{{width:28px;height:28px;border-radius:50%;border:2px solid var(--border-hover);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted2);transition:all 0.3s;flex-shrink:0;}}
 .step-dot.active{{border-color:var(--indigo);color:var(--indigo);background:rgba(99,102,241,0.1);}}
 .step-dot.done{{border-color:var(--green);background:var(--green);color:white;}}
@@ -1714,7 +1697,6 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
 .step-label-row{{display:flex;justify-content:space-between;margin-bottom:24px;}}
 .step-lbl{{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted2);}}
 .step-lbl.active{{color:var(--indigo);}} .step-lbl.done{{color:var(--green);}}
-
 .form-title{{font-size:20px;font-weight:800;margin-bottom:6px;letter-spacing:-0.3px;}}
 .form-sub{{font-size:13px;color:var(--muted);margin-bottom:24px;line-height:1.6;}}
 .form-wrap{{display:flex;flex-direction:column;gap:14px;}}
@@ -1725,21 +1707,13 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
 .field input::placeholder,.field textarea::placeholder{{color:var(--muted2);}}
 .field input:focus,.field select:focus,.field textarea:focus{{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(99,102,241,0.15);}}
 .field select{{cursor:pointer;}} .field select option{{background:var(--surface2);color:var(--text);}}
-
-/* SLOTS */
-.slots-grid{{max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;padding-right:4px;}}
-.slots-grid::-webkit-scrollbar{{width:3px;}} .slots-grid::-webkit-scrollbar-thumb{{background:var(--border-hover);border-radius:2px;}}
-.slot{{padding:10px 14px;border:1.5px solid var(--border-hover);border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:all 0.15s;font-family:var(--font);}}
-.slot:hover,.slot.selected{{border-color:var(--indigo);color:var(--text);background:rgba(99,102,241,0.08);}}
-
+.field textarea{{resize:vertical;min-height:80px;}}
 .submit-btn{{width:100%;padding:14px;border:none;border-radius:12px;background:var(--text);color:var(--black);font-weight:700;font-size:15px;font-family:var(--font);cursor:pointer;transition:opacity 0.2s,transform 0.2s;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px;}}
 .submit-btn:hover{{opacity:0.88;transform:translateY(-1px);}} .submit-btn:disabled{{opacity:0.5;cursor:not-allowed;transform:none;}}
 .back-btn{{width:100%;padding:12px;border:1px solid var(--border-hover);border-radius:12px;background:transparent;color:var(--muted);font-weight:600;font-size:14px;font-family:var(--font);cursor:pointer;transition:all 0.2s;margin-top:8px;}}
 .back-btn:hover{{border-color:rgba(255,255,255,0.3);color:var(--text);}}
 .form-note{{font-size:11px;color:var(--muted2);text-align:center;margin-top:10px;}}
 .form-error{{color:#f87171;font-size:12px;margin-top:2px;display:none;}}
-
-/* CONFIRM */
 .gs-confirm{{display:none;text-align:center;padding:32px 0;}}
 .gs-confirm .emoji{{font-size:52px;margin-bottom:16px;}}
 .gs-confirm h3{{font-size:22px;font-weight:800;margin-bottom:10px;}}
@@ -1755,12 +1729,6 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
 .ns-num{{width:20px;height:20px;border-radius:50%;background:var(--grad);color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}}
 .next-step-item div strong{{display:block;color:var(--text);font-size:12px;margin-bottom:1px;}}
 .next-step-item div span{{color:var(--muted);font-size:11px;}}
-
-/* MEET BOX */
-.meet-box{{background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;}}
-.meet-box i{{color:var(--indigo);font-size:16px;}}
-.meet-box div p{{font-size:12px;color:var(--muted);}} .meet-box div strong{{display:block;font-size:13px;color:var(--text);margin-bottom:2px;}}
-
 @media(max-width:768px){{
   .page{{grid-template-columns:1fr;}}
   .left{{padding:48px 24px 32px;}}
@@ -1773,11 +1741,7 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
 </style>
 </head>
 <body>
-
-<!-- CANVAS BLOB -->
 <canvas id="heroBurst" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
-
-<!-- NAVBAR -->
 <nav class="navbar" id="navbar">
   <a href="https://lumeraautomation.com" class="nav-logo">
     <img src="https://lumeraautomation.com/favicon.png" alt="Lumera">
@@ -1785,18 +1749,16 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
   </a>
   <a href="https://lumeraautomation.com" class="nav-back"><i class="fa-solid fa-arrow-left"></i> Back to site</a>
 </nav>
-
 <div class="page">
-  <!-- LEFT -->
   <div class="left">
     <div class="page-badge"><span class="live-dot"></span> Free Strategy Call</div>
     <h1 class="page-headline">Let's build your<br><span class="grad-animate">lead engine together.</span></h1>
-    <p class="page-sub">Book a free 30-minute call. We'll walk through your niche, your targets, and show you exactly how Lumera works — no pitch, just a real conversation.</p>
+    <p class="page-sub">Fill out the form and we'll reach out within 24 hours to schedule a free 30-minute strategy call — no pitch, just a real conversation about what Lumera can do for your business.</p>
     <div class="stats-row">
       <div class="stat-item">
         <div class="stat-icon"><i class="fa-solid fa-clock"></i></div>
-        <div class="stat-val">30min</div>
-        <div class="stat-lbl">Call length</div>
+        <div class="stat-val">&lt;24hrs</div>
+        <div class="stat-lbl">Response time</div>
       </div>
       <div class="stat-item">
         <div class="stat-icon"><i class="fa-solid fa-crosshairs"></i></div>
@@ -1810,19 +1772,15 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
       </div>
     </div>
     <div class="what-list">
-      <div class="what-item"><i class="fa-solid fa-check"></i> We'll identify your best target niches and cities</div>
-      <div class="what-item"><i class="fa-solid fa-check"></i> See a live demo of the lead gen dashboard</div>
-      <div class="what-item"><i class="fa-solid fa-check"></i> Walk through the outreach + follow-up system</div>
-      <div class="what-item"><i class="fa-solid fa-check"></i> Get a clear plan to start generating leads this week</div>
-      <div class="what-item"><i class="fa-solid fa-check"></i> No pressure — cancel anytime after</div>
+      <div class="what-item"><i class="fa-solid fa-check"></i> We identify your best target niches and cities</div>
+      <div class="what-item"><i class="fa-solid fa-check"></i> Live demo of your lead gen dashboard</div>
+      <div class="what-item"><i class="fa-solid fa-check"></i> Walk through outreach + follow-up system</div>
+      <div class="what-item"><i class="fa-solid fa-check"></i> Clear plan to start generating leads this week</div>
+      <div class="what-item"><i class="fa-solid fa-check"></i> No contracts — cancel anytime</div>
     </div>
   </div>
-
-  <!-- RIGHT -->
   <div class="right">
     <div class="form-card">
-
-      <!-- STEP 1 — Contact Info -->
       <div id="step1-wrap">
         <div class="step-bar">
           <div class="step-dot active">1</div>
@@ -1832,18 +1790,42 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
           <div class="step-dot">&#10003;</div>
         </div>
         <div class="step-label-row">
-          <span class="step-lbl active">Your Info</span>
-          <span class="step-lbl">Pick a Time</span>
+          <span class="step-lbl active">Contact</span>
+          <span class="step-lbl">Your Business</span>
           <span class="step-lbl">Done</span>
         </div>
         <h2 class="form-title">About you</h2>
-        <p class="form-sub">Quick details so we know who we're talking to — takes 30 seconds.</p>
+        <p class="form-sub">Tell us who you are — we'll reach out within 24 hours.</p>
         <div class="form-wrap">
           <div class="form-row">
             <div class="field"><label>First Name *</label><input id="b-fname" placeholder="Jane"/></div>
             <div class="field"><label>Last Name *</label><input id="b-lname" placeholder="Smith"/></div>
           </div>
-          <div class="field"><label>Email *</label><input id="b-email" type="email" placeholder="jane@yourbusiness.com"/></div>
+          <div class="form-row">
+            <div class="field"><label>Email *</label><input id="b-email" type="email" placeholder="jane@yourbusiness.com"/></div>
+            <div class="field"><label>Phone</label><input id="b-phone" type="tel" placeholder="(615) 555-0100"/></div>
+          </div>
+          <p id="f-error1" class="form-error">Please fill in your name and email.</p>
+          <button type="button" class="submit-btn" onclick="goStep2()">Continue <i class="fa-solid fa-arrow-right"></i></button>
+          <p class="form-note">No spam, ever. We'll reach out within 24 hours.</p>
+        </div>
+      </div>
+      <div id="step2-wrap" style="display:none;">
+        <div class="step-bar">
+          <div class="step-dot done">&#10003;</div>
+          <div class="step-line done"></div>
+          <div class="step-dot active">2</div>
+          <div class="step-line"></div>
+          <div class="step-dot">&#10003;</div>
+        </div>
+        <div class="step-label-row">
+          <span class="step-lbl done">Contact</span>
+          <span class="step-lbl active">Your Business</span>
+          <span class="step-lbl">Done</span>
+        </div>
+        <h2 class="form-title">Your business</h2>
+        <p class="form-sub">Help us understand your situation so we come prepared.</p>
+        <div class="form-wrap">
           <div class="field"><label>Business Name</label><input id="b-biz" placeholder="Nashville Roofing Co"/></div>
           <div class="field">
             <label>Your niche / industry *</label>
@@ -1862,158 +1844,116 @@ body::after{{content:'';position:fixed;inset:0;background-image:radial-gradient(
               <option>Other</option>
             </select>
           </div>
-          <p id="f-error1" class="form-error">Please fill in all required fields.</p>
-          <button type="button" class="submit-btn" onclick="goStep2()">Continue <i class="fa-solid fa-arrow-right"></i></button>
-          <p class="form-note">No spam, ever. Just confirming your booking.</p>
+          <div class="field">
+            <label>Biggest challenge right now *</label>
+            <select id="b-challenge">
+              <option value="" disabled selected>Select your main challenge...</option>
+              <option>Not enough leads coming in</option>
+              <option>Leads not converting to clients</option>
+              <option>Spending too much time prospecting manually</option>
+              <option>No consistent outreach system</option>
+              <option>Struggling to follow up with leads</option>
+              <option>Just starting out and need a system</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Anything else we should know?</label>
+            <textarea id="b-notes" placeholder="Goals, current situation, questions..."></textarea>
+          </div>
+          <p id="f-error2" class="form-error">Please fill in your niche and biggest challenge.</p>
+          <button type="button" class="submit-btn" id="submit-btn" onclick="submitForm()">Submit Application <i class="fa-solid fa-paper-plane"></i></button>
+          <button type="button" class="back-btn" onclick="goBack()">&#8592; Back</button>
         </div>
       </div>
-
-      <!-- STEP 2 — Pick a slot -->
-      <div id="step2-wrap" style="display:none;">
-        <div class="step-bar">
-          <div class="step-dot done">&#10003;</div>
-          <div class="step-line done"></div>
-          <div class="step-dot active">2</div>
-          <div class="step-line"></div>
-          <div class="step-dot">&#10003;</div>
-        </div>
-        <div class="step-label-row">
-          <span class="step-lbl done">Your Info</span>
-          <span class="step-lbl active">Pick a Time</span>
-          <span class="step-lbl">Done</span>
-        </div>
-        <h2 class="form-title">Pick your time</h2>
-        <p class="form-sub">All times in Central Time (CT). Mon&ndash;Fri 9am&ndash;5pm.</p>
-        <input type="hidden" id="b-slot"/>
-        <div class="slots-grid" style="margin-bottom:16px;">
-          {slots_html}
-        </div>
-        <p id="f-error2" class="form-error">Please select a time slot.</p>
-        <button type="button" class="submit-btn" id="book-btn" onclick="submitBook()">Book My Free Call <i class="fa-solid fa-calendar-check"></i></button>
-        <button type="button" class="back-btn" onclick="goBack()">&#8592; Back</button>
-        <p class="form-note">Google Meet link sent to your email automatically.</p>
-      </div>
-
-      <!-- CONFIRM -->
       <div class="gs-confirm" id="gs-confirm">
-        <div class="emoji">&#127881;</div>
-        <h3>You're booked!</h3>
-        <p>Check your email for your confirmation and Google Meet link. We'll see you soon!</p>
+        <div class="emoji">&#129309;</div>
+        <h3>Application received!</h3>
+        <p>We'll review your details and reach out within 24 hours — usually much faster.</p>
         <div class="confirm-summary" id="gs-summary"></div>
         <div class="next-steps">
           <h4>What happens next</h4>
-          <div class="next-step-item"><div class="ns-num">1</div><div><strong>Check your email</strong><span>Confirmation + Google Meet link sent instantly.</span></div></div>
-          <div class="next-step-item"><div class="ns-num">2</div><div><strong>We prep your niche</strong><span>We'll look at your market before the call so we're ready to go.</span></div></div>
-          <div class="next-step-item"><div class="ns-num">3</div><div><strong>Join the call</strong><span>30 minutes, no pitch. Just a real walkthrough of what Lumera can do for you.</span></div></div>
-          <div class="next-step-item"><div class="ns-num">4</div><div><strong>Start generating leads</strong><span>If it's a fit, we can have your system live within 48 hours.</span></div></div>
+          <div class="next-step-item"><div class="ns-num">1</div><div><strong>We review your application</strong><span>Expect a response within 24 hours — usually same day.</span></div></div>
+          <div class="next-step-item"><div class="ns-num">2</div><div><strong>We schedule your strategy call</strong><span>30 minutes, no pitch. Just a real walkthrough of what Lumera can do.</span></div></div>
+          <div class="next-step-item"><div class="ns-num">3</div><div><strong>Your system goes live</strong><span>If it's a fit, we can have leads flowing into your dashboard within 48 hours.</span></div></div>
         </div>
       </div>
-
     </div>
   </div>
 </div>
-
 <script>
-let selectedSlot = null;
-
-function goStep2() {{
-  const fname = document.getElementById('b-fname').value.trim();
-  const email = document.getElementById('b-email').value.trim();
-  const niche = document.getElementById('b-niche').value;
-  if (!fname || !email || !niche) {{
-    document.getElementById('f-error1').style.display = 'block'; return;
-  }}
-  document.getElementById('f-error1').style.display = 'none';
-  document.getElementById('step1-wrap').style.display = 'none';
-  document.getElementById('step2-wrap').style.display = 'block';
-  window.scrollTo({{top: 0, behavior: 'smooth'}});
+function goStep2(){{
+  const fname=document.getElementById('b-fname').value.trim();
+  const email=document.getElementById('b-email').value.trim();
+  if(!fname||!email){{document.getElementById('f-error1').style.display='block';return;}}
+  document.getElementById('f-error1').style.display='none';
+  document.getElementById('step1-wrap').style.display='none';
+  document.getElementById('step2-wrap').style.display='block';
+  window.scrollTo({{top:0,behavior:'smooth'}});
 }}
-
-function goBack() {{
-  document.getElementById('step2-wrap').style.display = 'none';
-  document.getElementById('step1-wrap').style.display = 'block';
-  window.scrollTo({{top: 0, behavior: 'smooth'}});
+function goBack(){{
+  document.getElementById('step2-wrap').style.display='none';
+  document.getElementById('step1-wrap').style.display='block';
+  window.scrollTo({{top:0,behavior:'smooth'}});
 }}
-
-function pickSlot(el) {{
-  document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
-  el.classList.add('selected');
-  document.getElementById('b-slot').value = el.dataset.start;
-  selectedSlot = el.dataset.start;
-}}
-
-async function submitBook() {{
-  const slot = document.getElementById('b-slot').value;
-  if (!slot) {{ document.getElementById('f-error2').style.display = 'block'; return; }}
-  document.getElementById('f-error2').style.display = 'none';
-  const btn = document.getElementById('book-btn');
-  btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Booking...';
-
-  const fname = document.getElementById('b-fname').value.trim();
-  const lname = document.getElementById('b-lname').value.trim();
-  const email = document.getElementById('b-email').value.trim();
-  const biz   = document.getElementById('b-biz').value.trim();
-  const name  = (fname + ' ' + lname).trim();
-
-  try {{
-    const res = await fetch('/book', {{
-      method: 'POST',
-      headers: {{'Content-Type': 'application/json'}},
-      body: JSON.stringify({{name, business: biz, email, start: slot}})
-    }});
-    const d = await res.json();
-    if (!res.ok) throw new Error(d.detail || 'Booking failed');
-
-    // Build summary
-    const slotEl = document.querySelector('.slot.selected');
-    const timeStr = slotEl ? slotEl.textContent : slot;
-    document.getElementById('gs-summary').innerHTML = `
+async function submitForm(){{
+  const niche=document.getElementById('b-niche').value;
+  const challenge=document.getElementById('b-challenge').value;
+  if(!niche||!challenge){{document.getElementById('f-error2').style.display='block';return;}}
+  document.getElementById('f-error2').style.display='none';
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Submitting...';
+  const fname=document.getElementById('b-fname').value.trim();
+  const lname=document.getElementById('b-lname').value.trim();
+  const email=document.getElementById('b-email').value.trim();
+  const phone=document.getElementById('b-phone').value.trim();
+  const biz=document.getElementById('b-biz').value.trim();
+  const notes=document.getElementById('b-notes').value.trim();
+  const name=(fname+' '+lname).trim();
+  try{{
+    const res=await fetch('/book',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{name,email,phone,business:biz,niche,challenge,notes}})}});
+    const d=await res.json();
+    if(!res.ok)throw new Error(d.detail||'Submission failed');
+    document.getElementById('gs-summary').innerHTML=`
       <div class="sum-row"><span>Name</span><span>${{name}}</span></div>
       <div class="sum-row"><span>Email</span><span>${{email}}</span></div>
-      ${{biz ? `<div class="sum-row"><span>Business</span><span>${{biz}}</span></div>` : ''}}
-      <div class="sum-row"><span>Time</span><span>${{timeStr}}</span></div>
+      ${{biz?`<div class="sum-row"><span>Business</span><span>${{biz}}</span></div>`:''}}
+      <div class="sum-row"><span>Niche</span><span>${{niche}}</span></div>
+      <div class="sum-row"><span>Challenge</span><span>${{challenge}}</span></div>
     `;
-    document.getElementById('step2-wrap').style.display = 'none';
-    document.getElementById('gs-confirm').style.display = 'block';
-  }} catch(e) {{
-    document.getElementById('f-error2').style.display = 'block';
-    document.getElementById('f-error2').textContent = e.message;
-    btn.disabled = false;
-    btn.innerHTML = 'Book My Free Call <i class="fa-solid fa-calendar-check"></i>';
+    document.getElementById('step2-wrap').style.display='none';
+    document.getElementById('gs-confirm').style.display='block';
+  }}catch(e){{
+    document.getElementById('f-error2').style.display='block';
+    document.getElementById('f-error2').textContent=e.message;
+    btn.disabled=false;btn.innerHTML='Submit Application <i class="fa-solid fa-paper-plane"></i>';
   }}
 }}
-
-window.addEventListener('scroll', () => document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 40));
-
-// Canvas blob
+window.addEventListener('scroll',()=>document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>40));
 (function(){{
-  const canvas = document.getElementById('heroBurst');
-  if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let W, H, t = 0, enterT = 0, entering = true;
-  function resize(){{ W=canvas.offsetWidth; H=canvas.offsetHeight; canvas.width=W; canvas.height=H; }}
-  resize(); window.addEventListener('resize', resize);
-  const layers = [{{color:'#0a0a2e'}},{{color:'#0d0d4a'}},{{color:'#12106a'}},{{color:'#1a1488'}},{{color:'#241aa0'}},{{color:'#3a22b8'}},{{color:'#5530c8'}},{{color:'#7040c8'}},{{color:'#9050c4'}},{{color:'#b060b8'}},{{color:'#c85898'}},{{color:'#d85878'}},{{color:'#e06080'}},{{color:'#d870a8'}},{{color:'#c878c8'}}];
-  function eob(x){{ const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2); }}
-  function eoe(x){{ return x===1?1:1-Math.pow(2,-10*x); }}
+  const canvas=document.getElementById('heroBurst');if(!canvas)return;
+  const ctx=canvas.getContext('2d');let W,H,t=0,enterT=0,entering=true;
+  function resize(){{W=canvas.offsetWidth;H=canvas.offsetHeight;canvas.width=W;canvas.height=H;}}
+  resize();window.addEventListener('resize',resize);
+  const layers=[{{color:'#0a0a2e'}},{{color:'#0d0d4a'}},{{color:'#12106a'}},{{color:'#1a1488'}},{{color:'#241aa0'}},{{color:'#3a22b8'}},{{color:'#5530c8'}},{{color:'#7040c8'}},{{color:'#9050c4'}},{{color:'#b060b8'}},{{color:'#c85898'}},{{color:'#d85878'}},{{color:'#e06080'}},{{color:'#d870a8'}},{{color:'#c878c8'}}];
+  function eob(x){{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2);}}
+  function eoe(x){{return x===1?1:1-Math.pow(2,-10*x);}}
   function buildPath(d,time,sx,sy,ox,oy){{
     const ph=time*(0.0004+d*0.00003),sh=1-d*0.040;
     const ax=W*(1.08-d*0.008)*sx+ox,ay=H*(0.52+d*0.010)*sy+oy,rx=W*0.80*sh*sx,ry=H*0.95*sh*sy;
-    ctx.beginPath(); const ps=[];
-    for(let i=0;i<=280;i++){{ const a=(i/280)*Math.PI*2,nx=Math.cos(a),ny=Math.sin(a),r=1+Math.sin(a*4+ph)*0.10+Math.sin(a*7.3+ph*1.6)*0.06+Math.sin(a*12.1+ph*0.9)*0.04+Math.sin(a*19.7+ph*2.1)*0.025+Math.sin(a*31.3+ph*1.4)*0.015; ps.push([ax+nx*rx*r,ay+ny*ry*r]); }}
-    ctx.moveTo(ps[0][0],ps[0][1]); for(let i=1;i<ps.length;i++) ctx.lineTo(ps[i][0],ps[i][1]); ctx.closePath();
+    ctx.beginPath();const ps=[];
+    for(let i=0;i<=280;i++){{const a=(i/280)*Math.PI*2,nx=Math.cos(a),ny=Math.sin(a),r=1+Math.sin(a*4+ph)*0.10+Math.sin(a*7.3+ph*1.6)*0.06+Math.sin(a*12.1+ph*0.9)*0.04+Math.sin(a*19.7+ph*2.1)*0.025+Math.sin(a*31.3+ph*1.4)*0.015;ps.push([ax+nx*rx*r,ay+ny*ry*r]);}}
+    ctx.moveTo(ps[0][0],ps[0][1]);for(let i=1;i<ps.length;i++)ctx.lineTo(ps[i][0],ps[i][1]);ctx.closePath();
   }}
   function draw(){{
-    ctx.clearRect(0,0,W,H);
-    let sx=1,sy=1,ox=0,oy=0,ga=1;
-    if(entering){{ const p=Math.min(enterT/75,1),e=eob(p); sx=0.3+e*0.7; sy=0.3+e*0.7; ox=(1-e)*W*0.4; oy=(1-e)*H*0.1; ga=eoe(Math.min(enterT/40,1)); enterT++; if(enterT>75) entering=false; }}
+    ctx.clearRect(0,0,W,H);let sx=1,sy=1,ox=0,oy=0,ga=1;
+    if(entering){{const p=Math.min(enterT/75,1),e=eob(p);sx=0.3+e*0.7;sy=0.3+e*0.7;ox=(1-e)*W*0.4;oy=(1-e)*H*0.1;ga=eoe(Math.min(enterT/40,1));enterT++;if(enterT>75)entering=false;}}
     ctx.globalAlpha=ga;
-    layers.forEach((l,i)=>{{ buildPath(i,t+i*600,sx,sy,ox,oy); ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=12; ctx.shadowOffsetX=-4; ctx.shadowOffsetY=6; ctx.fillStyle=l.color; ctx.globalAlpha=ga*0.82; ctx.fill(); ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0; ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=0.9; ctx.stroke(); ctx.globalAlpha=ga; }});
-    layers.forEach((l,i)=>{{ if(i%2!==0) return; const ph=(t+i*300)*0.0005*Math.PI*2; const cx=(W*(0.75+Math.sin(ph*1.1+i)*0.10))*sx+ox; const cy=(H*(0.08+i*0.065+Math.cos(ph*0.9+i)*0.025))*sy+oy; const r=(3+i*0.35)*sx; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=l.color; ctx.shadowColor=l.color; ctx.shadowBlur=14; ctx.globalAlpha=ga*0.9; ctx.fill(); ctx.shadowBlur=0; ctx.globalAlpha=ga; }});
+    layers.forEach((l,i)=>{{buildPath(i,t+i*600,sx,sy,ox,oy);ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=12;ctx.shadowOffsetX=-4;ctx.shadowOffsetY=6;ctx.fillStyle=l.color;ctx.globalAlpha=ga*0.82;ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=0.9;ctx.stroke();ctx.globalAlpha=ga;}});
+    layers.forEach((l,i)=>{{if(i%2!==0)return;const ph=(t+i*300)*0.0005*Math.PI*2;const cx=(W*(0.75+Math.sin(ph*1.1+i)*0.10))*sx+ox;const cy=(H*(0.08+i*0.065+Math.cos(ph*0.9+i)*0.025))*sy+oy;const r=(3+i*0.35)*sx;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=l.color;ctx.shadowColor=l.color;ctx.shadowBlur=14;ctx.globalAlpha=ga*0.9;ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=ga;}});
     ctx.globalAlpha=1;
-    const fade=ctx.createLinearGradient(0,0,W*0.52,0); fade.addColorStop(0,'rgba(8,8,8,1)'); fade.addColorStop(0.55,'rgba(8,8,8,0.85)'); fade.addColorStop(1,'rgba(8,8,8,0)');
-    ctx.fillStyle=fade; ctx.globalCompositeOperation='destination-out'; ctx.fillRect(0,0,W*0.52,H);
-    ctx.globalCompositeOperation='source-over'; t+=1; requestAnimationFrame(draw);
+    const fade=ctx.createLinearGradient(0,0,W*0.52,0);fade.addColorStop(0,'rgba(8,8,8,1)');fade.addColorStop(0.55,'rgba(8,8,8,0.85)');fade.addColorStop(1,'rgba(8,8,8,0)');
+    ctx.fillStyle=fade;ctx.globalCompositeOperation='destination-out';ctx.fillRect(0,0,W*0.52,H);
+    ctx.globalCompositeOperation='source-over';t+=1;requestAnimationFrame(draw);
   }}
   draw();
 }})();
@@ -2021,25 +1961,73 @@ window.addEventListener('scroll', () => document.getElementById('navbar').classL
 </body>
 </html>""")
 
+
 @app.post("/book")
 async def book_submit(request: Request):
-    data=await request.json()
-    name=data.get("name","").strip(); email=data.get("email","").strip()
-    business=data.get("business","").strip(); start=data.get("start","").strip()
-    if not name or not email or not start:
-        return JSONResponse({"detail":"Missing required fields"},status_code=400)
-    if not re.match(r"[^@]+@[^@]+\.[^@]+",email):
-        return JSONResponse({"detail":"Invalid email"},status_code=400)
-    meet_link=create_booking(name,email,business,start)
-    if meet_link is None:
-        return JSONResponse({"detail":"That slot is no longer available."},status_code=409)
-    save_booking(name,email,business,start,meet_link)
-    try:
-        dt=datetime.fromisoformat(start).astimezone(CENTRAL)
-        dts=dt.strftime("%A, %B %d at %I:%M %p CT")
-    except: dts=start
-    send_booking_confirmation(name,email,dts,meet_link)
-    return JSONResponse({"ok":True})
+    data = await request.json()
+    name     = data.get("name","").strip()
+    email    = data.get("email","").strip()
+    phone    = data.get("phone","").strip()
+    business = data.get("business","").strip()
+    niche    = data.get("niche","").strip()
+    challenge= data.get("challenge","").strip()
+    notes    = data.get("notes","").strip()
+
+    if not name or not email:
+        return JSONResponse({"detail":"Missing required fields"}, status_code=400)
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return JSONResponse({"detail":"Invalid email"}, status_code=400)
+
+    # Send notification email to Kory
+    if RESEND_API_KEY:
+        try:
+            import resend as r
+            r.api_key = RESEND_API_KEY
+            r.Emails.send({{
+                "from": f"Lumera Lead Engine <{FROM_EMAIL}>",
+                "to": "lumeraautomation@gmail.com",
+                "subject": f"New Strategy Call Application — {name}",
+                "html": f"""<div style="font-family:sans-serif;max-width:560px;margin:0 auto;background:#080808;color:#fff;padding:36px;border-radius:16px;border:1px solid rgba(255,255,255,0.07)">
+                    <div style="font-size:18px;font-weight:800;background:linear-gradient(135deg,#3b82f6,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:20px">LUMERA</div>
+                    <h2 style="font-size:18px;font-weight:700;margin-bottom:16px">New Strategy Call Application</h2>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px">
+                        <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.5);width:40%">Name</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);font-weight:600">{name}</td></tr>
+                        <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">Email</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);font-weight:600">{email}</td></tr>
+                        <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">Phone</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);font-weight:600">{phone or "—"}</td></tr>
+                        <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">Business</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);font-weight:600">{business or "—"}</td></tr>
+                        <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">Niche</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);font-weight:600">{niche}</td></tr>
+                        <tr><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.5)">Challenge</td><td style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);font-weight:600">{challenge}</td></tr>
+                        <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Notes</td><td style="padding:8px 0;font-weight:600">{notes or "—"}</td></tr>
+                    </table>
+                    <div style="margin-top:24px;padding:14px 16px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:10px;font-size:13px;color:rgba(255,255,255,0.7)">
+                        Reply to this email or reach out to <strong style="color:#fff">{email}</strong> within 24 hours.
+                    </div>
+                </div>"""
+            }})
+        except Exception as e:
+            print(f"Notification email failed: {{e}}")
+
+    # Send confirmation to applicant
+    if RESEND_API_KEY:
+        try:
+            import resend as r
+            r.api_key = RESEND_API_KEY
+            r.Emails.send({{
+                "from": f"Kory @ Lumera Automation <{FROM_EMAIL}>",
+                "to": email,
+                "subject": "We received your application — talk soon!",
+                "html": f"""<div style="font-family:sans-serif;max-width:540px;margin:0 auto;background:#080808;color:#fff;padding:40px;border-radius:16px;border:1px solid rgba(255,255,255,0.07)">
+                    <div style="font-size:20px;font-weight:800;background:linear-gradient(135deg,#3b82f6,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:20px">LUMERA</div>
+                    <h2 style="font-size:18px;font-weight:700;margin-bottom:8px">Hey {name.split()[0]}! Application received.</h2>
+                    <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;margin-bottom:20px">Thanks for reaching out. We'll review your details and get back to you within 24 hours to schedule your free strategy call.</p>
+                    <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;margin-bottom:24px">On the call we'll walk through your niche, your targets, and show you exactly how Lumera works — no pitch, just a real conversation.</p>
+                    <p style="color:rgba(255,255,255,0.3);font-size:13px">— Kory @ Lumera Automation</p>
+                </div>"""
+            }})
+        except Exception as e:
+            print(f"Confirmation email failed: {{e}}")
+
+    return JSONResponse({{"ok": True}})
 
 
 # ─────────────────────────────────────────────
