@@ -2708,3 +2708,9 @@ Return ONLY JSON: {{"subject":"...","body":"..."}}"""
         except Exception as e:
             print(f"Follow-up failed: {e}"); failed+=1
     return JSONResponse({"ok":True,"sent":sent,"failed":failed,"total_due":len(due)})
+
+@app.get("/debug-schema")
+def debug_schema():
+    with get_db() as conn:
+        cols = [d[1] for d in conn.execute("PRAGMA table_info(leads)").fetchall()]
+    return {"columns": cols}
