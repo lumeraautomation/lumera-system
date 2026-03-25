@@ -2572,4 +2572,4 @@ Return ONLY JSON: {{"subject":"...","body":"..."}}"""
             mark_followup_sent(lead["id"],new_step); sent+=1
         except Exception as e:
             print(f"Follow-up failed: {e}"); failed+=1
-    return JSONResponse({"ok":True,"sent":sent,"failed":failed,"total_due":len(due)})
+    return JSONResponse({"ok":True,"sent":sent,"failed":failed,"total_due":len(due)})# updated
