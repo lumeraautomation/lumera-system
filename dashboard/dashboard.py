@@ -232,10 +232,42 @@ def send_booking_confirmation(name, email, time_str, meet_link=None):
 # ─────────────────────────────────────────────
 # LEADS
 # ─────────────────────────────────────────────
+def rescore_lead(row):
+    """Smarter scoring based on email quality, phone, website, problem signals."""
+    score = 0
+    email = str(row.get("Email","")).lower()
+    phone = str(row.get("Phone","")).strip()
+    website = str(row.get("Website","")).lower()
+    problem = str(row.get("Problem","")).lower()
+    name = str(row.get("Name","")).lower()
+
+    # Has a real business email (not gmail/yahoo/icloud = more professional but also reachable)
+    if "@" in email and any(e in email for e in ["gmail","yahoo","icloud","hotmail","outlook"]):
+        score += 1  # personal email = owner is accessible
+    if "@" in email and not any(e in email for e in ["gmail","yahoo","icloud","hotmail","outlook"]):
+        score += 1  # business email = established
+
+    # Has phone number
+    if phone and phone not in ["—", "", "nan", "None"]:
+        score += 1
+
+    # Has website
+    if website and website not in ["none listed", "none", "n/a", "", "nan"]:
+        score += 1
+
+    # Problem signals — things that mean they NEED help
+    hot_keywords = ["no online booking", "low reviews", "no website", "limited hours",
+                    "no chatbot", "low visibility", "no owner", "generic email",
+                    "no direct", "contact form only", "limited", "fewer reviews"]
+    if any(kw in problem for kw in hot_keywords):
+        score += 1
+
+    return min(score, 4)  # cap at 4
+
 def heat_from_score(score):
     try: s=int(score)
     except: return "cold"
-    return "hot" if s>=2 else "warm" if s==1 else "cold"
+    return "hot" if s>=3 else "warm" if s>=2 else "cold"
 
 def load_all_leads():
     leads=[]; idx=0
@@ -243,9 +275,17 @@ def load_all_leads():
         if "_hot" in csv_file.name: continue
         try:
             df=pd.read_csv(csv_file).fillna("")
-            niche=csv_file.stem.split("_")[0].capitalize()
+            # Detect niche from filename - handle multi-word names like apollo_agencies
+            stem = csv_file.stem
+            if "apollo" in stem.lower():
+                niche = "Apollo Agencies"
+            else:
+                niche = stem.split("_")[0].capitalize()
             for row in df.to_dict(orient="records"):
-                row["_niche"]=niche; row["_heat"]=heat_from_score(row.get("Score",0)); row["_idx"]=idx
+                # Rescore every lead dynamically
+                new_score = rescore_lead(row)
+                row["Score"] = new_score
+                row["_niche"]=niche; row["_heat"]=heat_from_score(new_score); row["_idx"]=idx
                 idx+=1; leads.append(row)
         except Exception as e: print(f"CSV error: {e}")
     return leads
