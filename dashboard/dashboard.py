@@ -1989,7 +1989,7 @@ async def book_submit(request: Request):
         try:
             import resend as r
             r.api_key = RESEND_API_KEY
-            r.Emails.send({{
+            r.Emails.send({
                 "from": f"Lumera Lead Engine <{FROM_EMAIL}>",
                 "to": "lumeraautomation@gmail.com",
                 "subject": f"New Strategy Call Application — {name}",
@@ -2009,16 +2009,16 @@ async def book_submit(request: Request):
                         Reply to this email or reach out to <strong style="color:#fff">{email}</strong> within 24 hours.
                     </div>
                 </div>"""
-            }})
+                    })
         except Exception as e:
-            print(f"Notification email failed: {{e}}")
+            print(f"Notification email failed: {e}")
 
     # Send confirmation to applicant
     if RESEND_API_KEY:
         try:
             import resend as r
             r.api_key = RESEND_API_KEY
-            r.Emails.send({{
+            r.Emails.send({
                 "from": f"Kory @ Lumera Automation <{FROM_EMAIL}>",
                 "to": email,
                 "subject": "We received your application — talk soon!",
@@ -2029,9 +2029,9 @@ async def book_submit(request: Request):
                     <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;margin-bottom:24px">On the call we'll walk through your niche, your targets, and show you exactly how Lumera works — no pitch, just a real conversation.</p>
                     <p style="color:rgba(255,255,255,0.3);font-size:13px">— Kory @ Lumera Automation</p>
                 </div>"""
-            }})
+                    })
         except Exception as e:
-            print(f"Confirmation email failed: {{e}}")
+            print(f"Confirmation email failed: {e}")
 
     # Save to applications DB
     import sqlite3 as _sq3
@@ -2041,7 +2041,7 @@ async def book_submit(request: Request):
             (name,email,phone,business,niche,challenge,notes,datetime.now().isoformat()))
         _conn.commit()
 
-    return JSONResponse({{"ok": True}})
+    return JSONResponse({"ok": True})
 
 
 # ─────────────────────────────────────────────
