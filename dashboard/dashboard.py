@@ -2706,6 +2706,7 @@ Return ONLY JSON: {{"subject":"...","body":"..."}}"""
                 "html":f"<div style='font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.6'>{data['body'].replace(chr(10),'<br>')}</div>"})
             mark_followup_sent(lead["id"],new_step); sent+=1
         except Exception as e:
+            pass
 
 @app.get("/debug-schema")
 def debug_schema():
