@@ -1562,17 +1562,68 @@ def system_page(request: Request):
           {status_tag(bool(SERVICE_ACCOUNT_JSON))}
         </div>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Lead Files</div>
-          <span class="badge b-active">{len(main_csvs)} files</span>
+      <div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-header"><div class="card-title">Upload Leads CSV</div></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Upload any CSV file (Apollo, Google, custom) directly into your leads dashboard.</p>
+          <div id="upload-zone" style="border:2px dashed var(--border2);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:border-color .2s"
+               onclick="document.getElementById('csv-file-input').click()"
+               ondragover="event.preventDefault();this.style.borderColor='var(--indigo)'"
+               ondragleave="this.style.borderColor='var(--border2)'"
+               ondrop="handleDrop(event)">
+            <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;color:var(--muted);margin-bottom:10px;display:block"></i>
+            <div style="font-size:13px;font-weight:600;color:var(--muted2)">Click or drag &amp; drop a CSV file</div>
+            <div style="font-size:11px;color:var(--muted2);margin-top:4px">Apollo, Google Sheets, custom exports</div>
+          </div>
+          <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="uploadCSV(this.files[0])"/>
+          <div id="upload-status" style="margin-top:12px;font-size:12px;color:var(--muted);font-family:monospace;min-height:18px"></div>
+          <div style="margin-top:14px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);margin-bottom:8px">Niche label for this file</div>
+            <input type="text" id="upload-niche" placeholder="e.g. Apollo Agencies, Google Leads, Custom" 
+              style="width:100%;background:var(--black);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--font);font-size:12px;outline:none"/>
+          </div>
         </div>
-        <div class="tbl-wrap"><table>
-          <thead><tr><th>File</th><th>Leads</th><th>Modified</th></tr></thead>
-          <tbody>{csv_rows or '<tr><td colspan="3" class="empty-state">No CSV files yet</td></tr>'}</tbody>
-        </table></div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Lead Files</div>
+            <span class="badge b-active">{len(main_csvs)} files</span>
+          </div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>File</th><th>Leads</th><th>Modified</th><th></th></tr></thead>
+            <tbody>{csv_rows or '<tr><td colspan="4" class="empty-state">No CSV files yet</td></tr>'}</tbody>
+          </table></div>
+        </div>
       </div>
-    </div>"""
+    </div>
+    <script>
+    function handleDrop(e){{
+      e.preventDefault();
+      document.getElementById('upload-zone').style.borderColor='var(--border2)';
+      const file = e.dataTransfer.files[0];
+      if(file && file.name.endsWith('.csv')) uploadCSV(file);
+      else toast('Please drop a CSV file','err');
+    }}
+    async function uploadCSV(file){{
+      if(!file) return;
+      const niche = document.getElementById('upload-niche').value.trim() || 'Uploaded Leads';
+      const status = document.getElementById('upload-status');
+      status.textContent = 'Uploading...';
+      const form = new FormData();
+      form.append('file', file);
+      form.append('niche', niche);
+      try{{
+        const res = await fetch('/api/upload-csv', {{method:'POST', body:form}});
+        const d = await res.json();
+        if(!res.ok) throw new Error(d.detail||'Upload failed');
+        status.textContent = '✅ ' + d.message;
+        toast(d.message, 'ok');
+        setTimeout(()=>location.reload(), 1500);
+      }}catch(e){{
+        status.textContent = '❌ ' + e.message;
+        toast(e.message, 'err');
+      }}
+    }}
+    </script>"""
     return HTMLResponse(shell(content, "system", user))
 
 
@@ -2218,6 +2269,108 @@ def applications_page(request: Request):
 async def mark_app_contacted(app_id: int):
     db_run("UPDATE applications SET status='contacted' WHERE id=?", (app_id,))
     return JSONResponse({"ok": True})
+
+
+# ─────────────────────────────────────────────
+# CSV UPLOAD
+# ─────────────────────────────────────────────
+@app.post("/api/upload-csv")
+async def upload_csv(request: Request, file: "UploadFile" = None, niche: str = "Uploaded Leads"):
+    from fastapi import UploadFile, File
+    import io
+
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"detail":"Not authenticated"}, status_code=401)
+
+    # Parse form data
+    form = await request.form()
+    file = form.get("file")
+    niche = form.get("niche", "Uploaded Leads").strip() or "Uploaded Leads"
+
+    if not file:
+        return JSONResponse({"detail":"No file provided"}, status_code=400)
+
+    filename = file.filename
+    if not filename.endswith(".csv"):
+        return JSONResponse({"detail":"Only CSV files allowed"}, status_code=400)
+
+    contents = await file.read()
+
+    # Try to parse it
+    try:
+        df = pd.read_csv(io.StringIO(contents.decode("utf-8-sig"))).fillna("")
+    except Exception as e:
+        return JSONResponse({"detail":f"Could not parse CSV: {e}"}, status_code=400)
+
+    # Detect if it's an Apollo export and remap columns
+    cols = [c.lower() for c in df.columns]
+    is_apollo = "first name" in cols or "apollo contact id" in cols
+
+    if is_apollo:
+        # Remap Apollo columns to Lumera format
+        out_rows = []
+        for _, row in df.iterrows():
+            email = str(row.get("Email","")).strip()
+            if not email or "@" not in email: continue
+            status = str(row.get("Email Status","")).lower()
+            if status in ("invalid","bounced","do not email"): continue
+
+            first = str(row.get("First Name","")).strip()
+            last  = str(row.get("Last Name","")).strip()
+            company = str(row.get("Company Name","")).strip()
+            city = str(row.get("City","") or row.get("Company City","")).strip()
+            state = str(row.get("State","") or row.get("Company State","")).strip()
+            location = f"{city}, {state}".strip(", ") if city or state else "United States"
+            website = str(row.get("Website","")).strip()
+            phone = str(row.get("Work Direct Phone","") or row.get("Corporate Phone","") or row.get("Mobile Phone","")).strip()
+            industry = str(row.get("Industry","")).strip()
+            out_rows.append({
+                "Name": company or f"{first} {last}".strip(),
+                "City": location,
+                "Website": website or "None listed",
+                "Problem": f"{industry} agency — lead generation opportunity" if industry else "agency seeking more clients",
+                "Email": email,
+                "Phone": phone,
+                "Owner": first,
+                "Score": 2 if status == "verified" else 1,
+            })
+        df_out = pd.DataFrame(out_rows)
+        niche_slug = niche.replace(" ","_")
+        save_name = f"{niche_slug}_{datetime.now().strftime('%Y-%m-%d')}.csv"
+        save_path = DAILY_LEADS_DIR / save_name
+        df_out.to_csv(save_path, index=False)
+        return JSONResponse({"ok":True, "message":f"{len(df_out)} Apollo leads imported as '{niche}'"})
+
+    else:
+        # Generic CSV — check for required columns
+        required = ["Name","Email"]
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            # Try case-insensitive match
+            col_map = {c.lower():c for c in df.columns}
+            rename = {}
+            for req in required:
+                if req.lower() in col_map:
+                    rename[col_map[req.lower()]] = req
+            if rename:
+                df = df.rename(columns=rename)
+            else:
+                return JSONResponse({"detail":f"CSV must have columns: {', '.join(required)}. Found: {', '.join(df.columns)}"}, status_code=400)
+
+        # Add missing columns with defaults
+        for col, default in [("City","United States"),("Website","None listed"),
+                              ("Problem","lead generation opportunity"),
+                              ("Phone",""),("Owner",""),("Score",1)]:
+            if col not in df.columns:
+                df[col] = default
+
+        niche_slug = niche.replace(" ","_")
+        save_name = f"{niche_slug}_{datetime.now().strftime('%Y-%m-%d')}.csv"
+        save_path = DAILY_LEADS_DIR / save_name
+        df[["Name","City","Website","Problem","Email","Phone","Owner","Score"]].to_csv(save_path, index=False)
+        count = len(df[df["Email"].str.contains("@",na=False)])
+        return JSONResponse({"ok":True, "message":f"{count} leads imported as '{niche}'"})
 
 
 # ─────────────────────────────────────────────
