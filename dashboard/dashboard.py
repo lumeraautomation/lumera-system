@@ -25,6 +25,7 @@ CALENDAR_ID          = os.getenv("CALENDAR_ID")
 MEET_LINK            = os.getenv("MEET_LINK", "https://meet.google.com/new")
 DB_PATH              = Path(__file__).parent.parent / "outreach.db"
 DAILY_LEADS_DIR      = Path(__file__).parent.parent / "daily_leads"
+DAILY_LEADS_DIR.mkdir(exist_ok=True)  # Create if not exists (important on Render)
 SCRIPTS_DIR          = Path(__file__).parent.parent / "scripts"
 CENTRAL              = pytz.timezone("America/Chicago")
 CALL_DURATION_MINS   = 30
@@ -36,13 +37,13 @@ app = FastAPI(title="Lumera Lead Engine")
 # ─────────────────────────────────────────────
 ADMIN_USER = "admin"
 ADMIN_PASS = "lumera2024"
-sessions   = {}
-
+# Use DB-backed sessions so they survive Render restarts
 def get_current_user(request: Request):
     token = request.cookies.get("lumera_token")
-    if not token or token not in sessions:
+    if not token:
         return None
-    return sessions[token]
+    rows = db_query("SELECT username FROM sessions WHERE token=? AND expires_at > datetime('now')", (token,))
+    return rows[0]["username"] if rows else None
 
 # ─────────────────────────────────────────────
 # DATABASE
@@ -77,6 +78,9 @@ def init_db():
             name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT,
             business TEXT, niche TEXT, challenge TEXT, notes TEXT,
             status TEXT DEFAULT 'new', created_at TEXT NOT NULL)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY, username TEXT NOT NULL,
+            expires_at TEXT NOT NULL)""")
         try:
             conn.execute("ALTER TABLE bookings ADD COLUMN meet_link TEXT")
         except: pass
@@ -1033,16 +1037,20 @@ input:focus{{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(99,102,241,.12
 
 @app.post("/login")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
+    from datetime import timedelta
+    expires = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
     if username == ADMIN_USER and password == ADMIN_PASS:
         token = secrets.token_hex(32)
-        sessions[token] = username
+        db_run("INSERT OR REPLACE INTO sessions(token,username,expires_at) VALUES(?,?,?)",
+               (token, username, expires))
         resp = RedirectResponse("/overview", status_code=303)
         resp.set_cookie("lumera_token", token, httponly=True, max_age=86400*7)
         return resp
     clients = db_query("SELECT * FROM clients WHERE username=?", (username,))
     if clients and clients[0]["password"] == password:
         token = secrets.token_hex(32)
-        sessions[token] = username
+        db_run("INSERT OR REPLACE INTO sessions(token,username,expires_at) VALUES(?,?,?)",
+               (token, username, expires))
         resp = RedirectResponse("/leads", status_code=303)
         resp.set_cookie("lumera_token", token, httponly=True, max_age=86400*7)
         return resp
@@ -1051,7 +1059,8 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
 @app.get("/logout")
 def logout(request: Request):
     token = request.cookies.get("lumera_token")
-    sessions.pop(token, None)
+    if token:
+        db_run("DELETE FROM sessions WHERE token=?", (token,))
     resp = RedirectResponse("/login", status_code=303)
     resp.delete_cookie("lumera_token")
     return resp
@@ -2572,4 +2581,4 @@ Return ONLY JSON: {{"subject":"...","body":"..."}}"""
             mark_followup_sent(lead["id"],new_step); sent+=1
         except Exception as e:
             print(f"Follow-up failed: {e}"); failed+=1
-    return JSONResponse({"ok":True,"sent":sent,"failed":failed,"total_due":len(due)})# updated
+    return JSONResponse({"ok":True,"sent":sent,"failed":failed,"total_due":len(due)})
