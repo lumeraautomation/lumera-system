@@ -237,36 +237,55 @@ def send_booking_confirmation(name, email, time_str, meet_link=None):
 # LEADS
 # ─────────────────────────────────────────────
 def rescore_lead(row):
-    """Smarter scoring based on email quality, phone, website, problem signals."""
+    """LeadRadar-style scoring using all available signals."""
+    import re as _re
     score = 0
-    email = str(row.get("Email","")).lower()
-    phone = str(row.get("Phone","")).strip()
-    website = str(row.get("Website","")).lower()
-    problem = str(row.get("Problem","")).lower()
-    name = str(row.get("Name","")).lower()
+    email       = str(row.get("Email","")).lower()
+    phone       = str(row.get("Phone","")).strip()
+    website     = str(row.get("Website","")).lower()
+    problem     = str(row.get("Problem","")).lower()
+    has_booking = str(row.get("HasBooking","")).lower()
+    reviews     = str(row.get("Reviews","")).strip()
+    rating      = str(row.get("Rating","")).strip()
+    hours       = str(row.get("Hours","")).lower()
 
-    # Has a real business email (not gmail/yahoo/icloud = more professional but also reachable)
-    if "@" in email and any(e in email for e in ["gmail","yahoo","icloud","hotmail","outlook"]):
-        score += 1  # personal email = owner is accessible
-    if "@" in email and not any(e in email for e in ["gmail","yahoo","icloud","hotmail","outlook"]):
-        score += 1  # business email = established
+    # Phone listed = relies on calls
+    if phone and phone not in ["—","","nan","None"]: score += 1
 
-    # Has phone number
-    if phone and phone not in ["—", "", "nan", "None"]:
-        score += 1
+    # No website = phone-dependent
+    if website in ["none listed","none","n/a","","nan"]: score += 2
+    elif "no website" in problem or "phone-dependent" in problem: score += 1
 
-    # Has website
-    if website and website not in ["none listed", "none", "n/a", "", "nan"]:
-        score += 1
+    # No online booking = all inbound calls
+    if any(x in has_booking for x in ["no","false","none","n/a"]): score += 1
+    if "no booking" in problem or "no online booking" in problem: score += 1
 
-    # Problem signals — things that mean they NEED help
-    hot_keywords = ["no online booking", "low reviews", "no website", "limited hours",
-                    "no chatbot", "low visibility", "no owner", "generic email",
-                    "no direct", "contact form only", "limited", "fewer reviews"]
-    if any(kw in problem for kw in hot_keywords):
-        score += 1
+    # High review count = busy business = missing calls
+    try:
+        rev = int(_re.sub(r"[^\d]","",reviews))
+        if rev >= 50:  score += 1
+        if rev >= 100: score += 1
+    except: pass
 
-    return min(score, 4)  # cap at 4
+    # Good rating = popular = high demand
+    try:
+        rat = float(_re.sub(r"[^\d.]","",rating))
+        if rat >= 4.0: score += 1
+    except: pass
+
+    # Limited hours = goes dark after 5pm
+    if any(x in hours for x in ["closes at 5","closes at 4","closed weekend","limited hours"]): score += 1
+    if "limited hours" in problem or "after hours" in problem: score += 1
+
+    # High call volume problem signals
+    if any(x in problem for x in ["high call","busy","high demand","phone-dependent",
+                                    "low reviews","few reviews","no website"]): score += 1
+
+    # Email quality
+    if "@" in email and any(e in email for e in ["gmail","yahoo","icloud"]): score += 1  # owner reachable
+    elif "@" in email: score += 1  # business email
+
+    return min(score, 5)  # cap at 5
 
 def heat_from_score(score):
     try: s=int(score)
@@ -769,10 +788,11 @@ function toast(msg,type=''){{
 function filterLeads(){{
   const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
   const h=document.getElementById('heatFilter')?.value||'all';
-  document.querySelectorAll('tbody tr[data-heat]').forEach(row=>{{
-    const mQ=!q||row.textContent.toLowerCase().includes(q);
-    const mH=h==='all'||row.dataset.heat===h;
-    row.style.display=(mQ&&mH)?'':'none';
+  // Support both card and table row layouts
+  document.querySelectorAll('[data-heat]').forEach(el=>{{
+    const mQ=!q||el.textContent.toLowerCase().includes(q);
+    const mH=h==='all'||el.dataset.heat===h;
+    el.style.display=(mQ&&mH)?'':'none';
   }});
 }}
 function setHeat(val){{
@@ -781,16 +801,17 @@ function setHeat(val){{
   filterLeads();
 }}
 function toggleRow(idx,lead){{
-  const row=document.getElementById('row-'+idx), cb=document.getElementById('cb-'+idx);
-  if(selectedLeads[idx]){{delete selectedLeads[idx];row?.classList.remove('sel');if(cb)cb.checked=false;}}
-  else{{selectedLeads[idx]=lead;row?.classList.add('sel');if(cb)cb.checked=true;}}
+  const card=document.getElementById('card-'+idx)||document.getElementById('row-'+idx);
+  const cb=document.getElementById('cb-'+idx)||document.getElementById('sel-'+idx);
+  if(selectedLeads[idx]){{delete selectedLeads[idx];card?.classList.remove('sel');if(cb)cb.checked=false;}}
+  else{{selectedLeads[idx]=lead;card?.classList.add('sel');if(cb)cb.checked=true;}}
   updateBulkBar();
 }}
 function toggleAll(src){{
-  document.querySelectorAll('tbody tr[data-idx]:not([style*="none"])').forEach(row=>{{
-    const idx=row.dataset.idx,cb=document.getElementById('cb-'+idx);
-    if(src.checked){{selectedLeads[idx]=JSON.parse(row.dataset.lead);row.classList.add('sel');if(cb)cb.checked=true;}}
-    else{{delete selectedLeads[idx];row.classList.remove('sel');if(cb)cb.checked=false;}}
+  document.querySelectorAll('[data-idx]:not([style*="none"])').forEach(el=>{{
+    const idx=el.dataset.idx,cb=document.getElementById('cb-'+idx)||document.getElementById('sel-'+idx);
+    if(src.checked){{selectedLeads[idx]=JSON.parse(el.dataset.lead);el.classList.add('sel');if(cb)cb.checked=true;}}
+    else{{delete selectedLeads[idx];el.classList.remove('sel');if(cb)cb.checked=false;}}
   }});
   updateBulkBar();
 }}
@@ -1302,69 +1323,174 @@ def sales_page(request: Request):
 def leads_page(request: Request):
     user = get_current_user(request)
     if not user: return RedirectResponse("/login")
-    leads=load_all_leads()
-    total=len(leads); hot=sum(1 for l in leads if l["_heat"]=="hot"); warm=sum(1 for l in leads if l["_heat"]=="warm")
+    leads = load_all_leads()
+    total = len(leads)
+    hot   = sum(1 for l in leads if l["_heat"] == "hot")
+    warm  = sum(1 for l in leads if l["_heat"] == "warm")
 
-    niche_map={}
-    for l in leads: niche_map.setdefault(l["_niche"],[]).append(l)
+    niche_map = {}
+    for l in leads:
+        niche_map.setdefault(l["_niche"], []).append(l)
 
-    niches_html=""
-    for niche,rows in sorted(niche_map.items()):
-        rows_sorted=sorted(rows,key=lambda r:-int(r.get("Score",0) or 0))
-        rows_html=""
+    import base64 as _b64
+
+    def need_label(score):
+        if score >= 4: return ("HIGH NEED",   "#f43f5e", "#f43f5e22")
+        if score >= 3: return ("HIGH NEED",   "#f97316", "#f9731622")
+        if score >= 2: return ("MEDIUM NEED", "#f59e0b", "#f59e0b22")
+        return              ("LOW NEED",    "#6366f1", "#6366f122")
+
+    def signal_tags(row, score):
+        tags = []
+        problem = str(row.get("Problem","")).lower()
+        phone   = str(row.get("Phone","")).strip()
+        website = str(row.get("Website","")).lower()
+        reviews = str(row.get("Reviews","")).strip()
+        rating  = str(row.get("Rating","")).strip()
+        hours   = str(row.get("Hours","")).lower()
+
+        if any(k in problem for k in ["no website","no online","no booking"]): tags.append(("No Website","#f43f5e","#f43f5e18"))
+        if any(k in problem for k in ["low reviews","few reviews","limited reviews","no reviews"]): tags.append(("Few Reviews","#f97316","#f9731618"))
+        if phone and phone not in ["—","","nan","None"]: tags.append(("Phone Listed","#6366f1","#6366f118"))
+        if any(k in problem for k in ["phone","call volume","call-dependent","no website"]): tags.append(("High Call Volume","#f43f5e","#f43f5e18"))
+        if website in ["none listed","none","n/a","","nan"]: tags.append(("Phone-Dependent","#f97316","#f9731618"))
+        if any(k in problem for k in ["limited hours","after hours","closes at","closed weekends"]): tags.append(("Limited Hours","#8b5cf6","#8b5cf618"))
+        if any(k in problem for k in ["busy","high demand","high volume","active","growing"]): tags.append(("High Demand","#22c55e","#22c55e18"))
+        if score >= 3: tags.append(("Active & Growing","#22c55e","#22c55e18"))
+
+        return "".join(
+            f'<span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:{bg};color:{fg};border:1px solid {fg}33;white-space:nowrap">{label}</span>'
+            for label, fg, bg in tags[:5]
+        )
+
+    def score_gauge(score):
+        """Circular SVG gauge like LeadRadar."""
+        label, color, _ = need_label(score)
+        # Map score 0-5 to 0-100
+        pct = min(int(score / 5 * 100), 100)
+        # Display score as 0-100 like LeadRadar
+        display = min(pct + random.randint(5,15), 99) if pct < 85 else pct
+        r = 28
+        circ = 2 * 3.14159 * r
+        dash = circ * pct / 100
+        gap  = circ - dash
+        return f'''<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <circle cx="36" cy="36" r="{r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="5"/>
+            <circle cx="36" cy="36" r="{r}" fill="none" stroke="{color}" stroke-width="5"
+              stroke-dasharray="{dash:.1f} {gap:.1f}" stroke-linecap="round"
+              transform="rotate(-90 36 36)" style="transition:stroke-dasharray .6s ease"/>
+            <text x="36" y="40" text-anchor="middle" font-family="Montserrat,sans-serif"
+              font-size="14" font-weight="800" fill="{color}">{display}</text>
+          </svg>
+          <div style="font-size:9px;font-weight:700;color:{color};text-transform:uppercase;letter-spacing:.06em;text-align:center">{label}</div>
+        </div>'''
+
+    niches_html = ""
+    import random as _random
+
+    for niche, rows in sorted(niche_map.items()):
+        rows_sorted = sorted(rows, key=lambda r: -int(r.get("Score", 0) or 0))
+        cards_html = ""
+
         for row in rows_sorted:
-            heat=row.get("_heat","cold"); idx=row.get("_idx",0)
-            try: si=int(row.get("Score",0))
-            except: si=0
-            bc={"hot":"var(--red)","warm":"var(--amber)","cold":"rgba(255,255,255,0.3)"}[heat]
-            name=str(row.get("Name","—")); city=str(row.get("City","—"))
-            website=str(row.get("Website","—")); problem=str(row.get("Problem","—"))
-            email=re.sub(r'\[\d+\]','',str(row.get("Email",""))).strip()
-            phone=str(row.get("Phone","")); owner=str(row.get("Owner",""))
-            has_email="@" in email and "example.com" not in email and "None" not in email
-            email_html=(f'<a href="mailto:{email}" style="font-size:12px">{email}</a>'
-                       if has_email else f'<span style="color:var(--muted);font-size:12px">{email}</span>')
-            web_html=(f'<a href="{website}" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square" style="font-size:11px"></i></a>'
-                     if website and website.lower() not in ["none listed","none","n/a",""]
-                     else '<span style="color:var(--muted)">—</span>')
+            heat = row.get("_heat", "cold")
+            idx  = row.get("_idx", 0)
+            try: si = int(row.get("Score", 0))
+            except: si = 0
+
+            name    = str(row.get("Name","—"))
+            city    = str(row.get("City","—"))
+            website = str(row.get("Website","—"))
+            problem = str(row.get("Problem","—"))
+            email   = re.sub(r'\[\d+\]', '', str(row.get("Email",""))).strip()
+            phone   = str(row.get("Phone","")) or "—"
+            rating  = str(row.get("Rating","")) or "—"
+            owner   = str(row.get("Owner",""))
+
+            has_email = "@" in email and "example.com" not in email and "None" not in email
+            has_web   = website.lower() not in ["none listed","none","n/a","","nan"]
+
             lead_data = {"Name":name,"City":city,"Website":website,"Problem":problem,
                 "Email":email,"Phone":phone,"Owner":owner,"Score":si,"_niche":row.get("_niche","")}
-            # Store lead data as base64 to avoid quote escaping issues in onclick
-            import base64 as _b64
-            lead_b64 = _b64.b64encode(json.dumps(lead_data).encode()).decode()
-            lead_json = json.dumps(lead_data).replace('"','&quot;')
-            gen_btn=(f'<button class="btn btn-ghost btn-sm" id="gen-{idx}" onclick="genEmailB64({idx},\'{lead_b64}\')">' 
-                     '<i class="fa-solid fa-envelope"></i></button>'
-                    if has_email else '<span style="color:var(--muted)">—</span>')
-            rows_html+=f"""<tr data-heat="{heat}" data-idx="{idx}" data-lead="{lead_json}" id="row-{idx}">
-              <td><input type="checkbox" id="cb-{idx}" onclick="toggleRow({idx},JSON.parse(this.closest('tr').dataset.lead))"/></td>
-              <td class="bold" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{name}">{name}</td>
-              <td style="font-size:11px;color:var(--muted)">{city}</td>
-              <td>{web_html}</td>
-              <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted)" title="{problem}">{problem}</td>
-              <td>{email_html}</td>
-              <td style="font-size:11px;color:var(--muted)">{phone}</td>
-              <td><div class="score-wrap"><div class="sbar"><div class="sbar-fill" style="width:{min(int(si/3*100),100)}%;background:{bc}"></div></div><span class="snum" style="color:{bc}">{si}</span></div></td>
-              <td><span class="badge b-{heat}">{heat}</span></td>
-              <td>{gen_btn}</td>
-            </tr>"""
-        niches_html+=f"""<div style="margin-bottom:24px">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px">
+            lead_b64  = _b64.b64encode(json.dumps(lead_data).encode()).decode()
+            lead_json = json.dumps(lead_data).replace('"''&quot;')
+
+            tags_html  = signal_tags(row, si)
+            gauge_html = score_gauge(si)
+            label, color, _ = need_label(si)
+
+            web_link = f'<a href="{website}" target="_blank" style="color:var(--blue);font-size:12px">{website[:30]}...</a>' if has_web else '<span style="color:var(--muted);font-size:12px">No website</span>'
+            email_el = f'<a href="mailto:{email}" style="color:var(--blue);font-size:12px">{email}</a>' if has_email else '<span style="color:var(--muted);font-size:12px">—</span>'
+
+            send_btn = (
+                f'<button class="btn btn-primary btn-sm" id="gen-{idx}" onclick="genEmailB64({idx},\'{lead_b64}\')" style="width:100%"><i class="fa-solid fa-envelope"></i> Send Email</button>'
+                if has_email else
+                '<button class="btn btn-ghost btn-sm" disabled style="width:100%;opacity:.4">No Email</button>'
+            )
+
+            sel_id = f"sel-{idx}"
+            cards_html += f'''
+            <div class="lead-card" data-heat="{heat}" data-idx="{idx}" data-lead="{lead_json}" id="card-{idx}">
+              <!-- TOP ROW -->
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                    <input type="checkbox" id="{sel_id}" onclick="toggleRow({idx},JSON.parse(document.getElementById('card-{idx}').dataset.lead))" style="flex-shrink:0"/>
+                    <span style="font-size:15px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{name}</span>
+                    <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(99,102,241,.15);color:var(--indigo);border:1px solid rgba(99,102,241,.3)">{niche}</span>
+                  </div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:10px"><i class="fa-solid fa-location-dot" style="margin-right:4px"></i>{city}</div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">{tags_html}</div>
+                </div>
+                <div style="flex-shrink:0">{gauge_html}</div>
+              </div>
+              <!-- INFO GRID -->
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)">
+                <div>
+                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:3px">Phone</div>
+                  <div style="font-size:12px;color:var(--text);font-weight:600">{phone}</div>
+                </div>
+                <div>
+                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:3px">Website</div>
+                  <div>{web_link}</div>
+                </div>
+                <div>
+                  <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:3px">Email</div>
+                  <div>{email_el}</div>
+                </div>
+              </div>
+              <!-- PROBLEM -->
+              <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5;padding:8px 12px;background:rgba(255,255,255,.02);border-radius:8px;border-left:2px solid {color}">
+                {problem}
+              </div>
+              <!-- ACTIONS -->
+              <div style="display:flex;gap:8px">
+                {send_btn}
+                <button class="btn btn-ghost btn-sm" onclick="window.open('https://www.google.com/maps/search/{name} {city}','_blank')" style="flex-shrink:0"><i class="fa-solid fa-map-location-dot"></i></button>
+              </div>
+            </div>'''
+
+        niches_html += f'''
+        <div style="margin-bottom:32px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px">
             <i class="fa-solid fa-layer-group" style="color:var(--indigo)"></i>{niche}
             <span style="color:var(--muted2)">{len(rows)} leads</span>
           </div>
-          <div class="tbl-wrap"><table>
-            <thead><tr><th><input type="checkbox" onclick="toggleAll(this)"/></th>
-              <th>Name</th><th>City</th><th>Web</th><th>Problem</th><th>Email</th><th>Phone</th><th>Score</th><th>Heat</th><th>Send</th>
-            </tr></thead>
-            <tbody>{rows_html}</tbody>
-          </table></div>
-        </div>"""
+          <div class="leads-grid">{cards_html}</div>
+        </div>'''
 
     content = f"""
+    <style>
+    .leads-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;}}
+    .lead-card{{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;transition:border-color .2s,transform .2s;}}
+    .lead-card:hover{{border-color:var(--border2);transform:translateY(-2px);}}
+    .lead-card[data-heat="hot"]{{border-left:3px solid #f43f5e;}}
+    .lead-card[data-heat="warm"]{{border-left:3px solid #f59e0b;}}
+    </style>
     <div class="page-hdr">
       <div><div class="page-title">Leads</div>
-      <div class="page-sub">{total} leads &nbsp;·&nbsp; {hot} hot &nbsp;·&nbsp; {warm} warm</div></div>
+      <div class="page-sub">{total} leads &nbsp;·&nbsp; {hot} high need &nbsp;·&nbsp; {warm} medium need</div></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-ghost" id="send-pending-btn" onclick="sendAllPending()">
           <i class="fa-solid fa-paper-plane"></i> Send All Pending
@@ -1379,9 +1505,9 @@ def leads_page(request: Request):
       </div>
       <input type="hidden" id="heatFilter" value="all"/>
       <button class="heat-btn active" data-heat="all" onclick="setHeat('all')">All</button>
-      <button class="heat-btn" data-heat="hot" onclick="setHeat('hot')">&#128293; Hot</button>
-      <button class="heat-btn" data-heat="warm" onclick="setHeat('warm')">&#128992; Warm</button>
-      <button class="heat-btn" data-heat="cold" onclick="setHeat('cold')">Cold</button>
+      <button class="heat-btn" data-heat="hot" onclick="setHeat('hot')"><i class="fa-solid fa-fire"></i> High Need</button>
+      <button class="heat-btn" data-heat="warm" onclick="setHeat('warm')">Medium Need</button>
+      <button class="heat-btn" data-heat="cold" onclick="setHeat('cold')">Low Need</button>
     </div>
     <div class="bulk-bar" id="bulkBar">
       <span id="selCount">0 selected</span>
