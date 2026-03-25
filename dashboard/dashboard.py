@@ -2706,11 +2706,11 @@ Return ONLY JSON: {{"subject":"...","body":"..."}}"""
                 "html":f"<div style='font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.6'>{data['body'].replace(chr(10),'<br>')}</div>"})
             mark_followup_sent(lead["id"],new_step); sent+=1
         except Exception as e:
-            print(f"Follow-up failed: {e}"); failed+=1
-    return JSONResponse({"ok":True,"sent":sent,"failed":failed,"total_due":len(due)})
 
 @app.get("/debug-schema")
 def debug_schema():
-    with get_db() as conn:
-        cols = [d[1] for d in conn.execute("PRAGMA table_info(leads)").fetchall()]
-    return {"columns": cols}
+    conn = sqlite3.connect(DB_PATH)
+    cols = [d[1] for d in conn.execute("PRAGMA table_info(leads)").fetchall()]
+    tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+    conn.close()
+    return {"tables": tables, "leads_columns": cols}
