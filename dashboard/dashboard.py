@@ -2056,35 +2056,40 @@ def applications_page(request: Request):
     total = len(apps)
     new_count = sum(1 for a in apps if a.get("status","new") == "new")
 
-    async def mark_contacted(app_id):
-        db_run("UPDATE applications SET status='contacted' WHERE id=?", (app_id,))
-
     rows = ""
     for a in apps:
         status = a.get("status","new")
         badge_cls = "b-active" if status == "contacted" else "b-sent"
-        rows += f"""<tr>
-          <td class="bold">{a.get('name','—')}</td>
-          <td><a href="mailto:{a.get('email','')}" style="font-size:12px">{a.get('email','—')}</a></td>
-          <td style="font-size:12px;color:rgba(255,255,255,.7)">{a.get('phone','—') or '—'}</td>
-          <td style="font-size:12px;color:rgba(255,255,255,.7)">{a.get('business','—') or '—'}</td>
-          <td style="font-size:12px;color:rgba(255,255,255,.7)">{a.get('niche','—')}</td>
-          <td style="font-size:12px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{a.get('challenge','')}">{a.get('challenge','—')}</td>
-          <td style="font-size:11px;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{a.get('notes','')}">{a.get('notes','—') or '—'}</td>
+        app_id = a.get("id")
+        name = a.get("name","—")
+        email = a.get("email","—")
+        phone = a.get("phone","") or "—"
+        business = a.get("business","") or "—"
+        niche = a.get("niche","—")
+        challenge = a.get("challenge","—")
+        notes = a.get("notes","") or "—"
+        created = a.get("created_at","")[:10]
+
+        import json as _json
+        app_data = _json.dumps({
+            "id": app_id, "name": name, "email": email, "phone": phone,
+            "business": business, "niche": niche, "challenge": challenge,
+            "notes": notes, "status": status, "created": created
+        }).replace("'", "\'")
+
+        rows += f"""<tr style="cursor:pointer" onclick="openApp(JSON.parse(this.dataset.app))" data-app='{app_data}'>
+          <td class="bold">{name}</td>
+          <td style="font-size:12px;color:rgba(255,255,255,.7)">{email}</td>
+          <td style="font-size:12px;color:rgba(255,255,255,.7)">{phone}</td>
+          <td style="font-size:12px;color:rgba(255,255,255,.7)">{niche}</td>
           <td><span class="badge {badge_cls}">{status}</span></td>
-          <td style="font-size:11px;color:var(--muted)">{a.get('created_at','')[:10]}</td>
-          <td>
-            <div style="display:flex;gap:6px">
-              <a href="mailto:{a.get('email','')}" class="btn btn-primary btn-sm">Reply</a>
-              {"" if status == "contacted" else f'<button class="btn btn-ghost btn-sm" onclick="markContacted({a['id']})">Mark Done</button>'}
-            </div>
-          </td>
+          <td style="font-size:11px;color:var(--muted)">{created}</td>
         </tr>"""
 
     content = f"""
     <div class="page-hdr">
       <div><div class="page-title">Applications</div>
-      <div class="page-sub">Strategy call form submissions from your booking page</div></div>
+      <div class="page-sub">Strategy call form submissions · click any row to view details</div></div>
     </div>
     <div class="metrics-grid">
       {mcard('<i class="fa-solid fa-inbox"></i>','Total Applications',total)}
@@ -2095,16 +2100,75 @@ def applications_page(request: Request):
       <div class="card-header"><div class="card-title">All Applications</div></div>
       <div class="tbl-wrap"><table>
         <thead><tr>
-          <th>Name</th><th>Email</th><th>Phone</th><th>Business</th>
-          <th>Niche</th><th>Challenge</th><th>Notes</th><th>Status</th><th>Date</th><th>Action</th>
+          <th>Name</th><th>Email</th><th>Phone</th><th>Niche</th><th>Status</th><th>Date</th>
         </tr></thead>
-        <tbody>{rows if rows else '<tr><td colspan="10" class="empty-state">No applications yet. Share your booking page link to start getting submissions.</td></tr>'}</tbody>
+        <tbody>{rows if rows else '<tr><td colspan="6" class="empty-state">No applications yet. Share your booking page link to start getting submissions.</td></tr>'}</tbody>
       </table></div>
     </div>
+
+    <!-- APPLICATION DETAIL MODAL -->
+    <div class="modal-overlay" id="appModal">
+      <div class="modal" style="max-width:540px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <h3 style="margin:0" id="app-modal-name">Application</h3>
+          <button onclick="document.getElementById('appModal').classList.remove('open')"
+            style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px">&#10005;</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
+          <div class="app-field"><div class="app-label">Email</div><div class="app-val" id="app-email"></div></div>
+          <div class="app-field"><div class="app-label">Phone</div><div class="app-val" id="app-phone"></div></div>
+          <div class="app-field"><div class="app-label">Business</div><div class="app-val" id="app-business"></div></div>
+          <div class="app-field"><div class="app-label">Niche</div><div class="app-val" id="app-niche"></div></div>
+          <div class="app-field"><div class="app-label">Biggest Challenge</div><div class="app-val" id="app-challenge"></div></div>
+          <div class="app-field"><div class="app-label">Notes</div><div class="app-val" id="app-notes"></div></div>
+          <div class="app-field"><div class="app-label">Submitted</div><div class="app-val" id="app-date"></div></div>
+          <div class="app-field"><div class="app-label">Status</div><div id="app-status"></div></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a id="app-reply-btn" href="#" class="btn btn-primary" style="flex:1;justify-content:center">
+            <i class="fa-solid fa-envelope"></i> Reply via Email
+          </a>
+          <button id="app-contact-btn" class="btn btn-green" onclick="markAppContacted()" style="flex:1">
+            <i class="fa-solid fa-check"></i> Mark as Contacted
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <style>
+    .app-field{{display:flex;flex-direction:column;gap:3px;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);}}
+    .app-label{{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}}
+    .app-val{{font-size:13px;color:var(--text);font-weight:500;}}
+    tbody tr:hover td{{background:rgba(99,102,241,0.05)!important;}}
+    </style>
+
     <script>
-    async function markContacted(id){{
-      await fetch('/api/applications/'+id+'/contacted',{{method:'POST'}});
+    let currentAppId = null;
+    function openApp(a){{
+      currentAppId = a.id;
+      document.getElementById('app-modal-name').textContent = a.name;
+      document.getElementById('app-email').textContent = a.email;
+      document.getElementById('app-phone').textContent = a.phone;
+      document.getElementById('app-business').textContent = a.business;
+      document.getElementById('app-niche').textContent = a.niche;
+      document.getElementById('app-challenge').textContent = a.challenge;
+      document.getElementById('app-notes').textContent = a.notes;
+      document.getElementById('app-date').textContent = a.created;
+      document.getElementById('app-status').innerHTML = a.status === 'contacted'
+        ? '<span class="badge b-active">contacted</span>'
+        : '<span class="badge b-sent">new</span>';
+      document.getElementById('app-reply-btn').href = 'mailto:' + a.email
+        + '?subject=Re: Your Lumera Strategy Call Application'
+        + '&body=Hey ' + a.name.split(' ')[0] + ',%0D%0A%0D%0AThanks for applying! I'd love to set up a quick call to walk you through how Lumera works for your ' + a.niche + ' business.%0D%0A%0D%0AWhat time works best for you?%0D%0A%0D%0A— Kory%0D%0ALumera Automation';
+      const contactBtn = document.getElementById('app-contact-btn');
+      contactBtn.style.display = a.status === 'contacted' ? 'none' : '';
+      document.getElementById('appModal').classList.add('open');
+    }}
+    async function markAppContacted(){{
+      if(!currentAppId) return;
+      await fetch('/api/applications/'+currentAppId+'/contacted',{{method:'POST'}});
       toast('Marked as contacted','ok');
+      document.getElementById('appModal').classList.remove('open');
       setTimeout(()=>location.reload(),600);
     }}
     </script>"""
