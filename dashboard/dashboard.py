@@ -1414,7 +1414,7 @@ def leads_page(request: Request):
             lead_data = {"Name":name,"City":city,"Website":website,"Problem":problem,
                 "Email":email,"Phone":phone,"Owner":owner,"Score":si,"_niche":row.get("_niche","")}
             lead_b64  = _b64.b64encode(json.dumps(lead_data).encode()).decode()
-            lead_json = json.dumps(lead_data).replace('"''&quot;')
+            lead_json = json.dumps(lead_data).replace('"', '&quot;')
 
             tags_html  = signal_tags(row, si)
             gauge_html = score_gauge(si)
