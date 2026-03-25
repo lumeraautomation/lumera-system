@@ -2715,3 +2715,32 @@ def debug_schema():
     tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
     conn.close()
     return {"tables": tables, "leads_columns": cols}
+
+@app.get("/init-leads-table")
+def init_leads_table():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            business_name TEXT,
+            phone TEXT,
+            email TEXT,
+            website TEXT,
+            niche TEXT,
+            city TEXT,
+            state TEXT,
+            score INTEGER DEFAULT 0,
+            score_label TEXT,
+            signals TEXT,
+            problem TEXT,
+            rating TEXT,
+            review_count INTEGER,
+            has_booking INTEGER DEFAULT 0,
+            hours TEXT,
+            status TEXT DEFAULT 'new',
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.commit()
+    conn.close()
+    return {"status": "leads table created"}
