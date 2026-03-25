@@ -76,12 +76,27 @@ done
 echo ""
 echo "Part 1 complete — $LOCAL_TOTAL local leads"
 
-# ── PART 2: Agency leads via Clutch ──────────────────────────────────────────
+# ── PART 2: Agency leads via Google Search ───────────────────────────────────
 echo ""
-echo "PART 2: Agency leads (Clutch.co)"
+echo "PART 2: Agency leads (Google Search)"
 echo "------------------------------------------------"
 
 pip install beautifulsoup4 curl-cffi --quiet --break-system-packages 2>/dev/null
+python3 ~/lumera-system/scripts/google_scraper.py
+
+GOOGLE_COUNT=0
+GOOGLE_FILE=$(ls ~/lumera-system/daily_leads/google_agencies_*.csv 2>/dev/null | head -1)
+if [ -f "$GOOGLE_FILE" ]; then
+    GOOGLE_COUNT=$(tail -n +2 "$GOOGLE_FILE" | wc -l)
+    TOTAL=$((TOTAL + GOOGLE_COUNT))
+    echo "Google agency leads: $GOOGLE_COUNT"
+fi
+
+# ── PART 3: Agency leads via Clutch ──────────────────────────────────────────
+echo ""
+echo "PART 3: Agency leads (Clutch.co)"
+echo "------------------------------------------------"
+
 python3 ~/lumera-system/scripts/clutch_scraper.py
 
 CLUTCH_COUNT=0
