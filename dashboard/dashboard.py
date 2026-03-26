@@ -2712,7 +2712,7 @@ async def engine_scrape(request: Request):
     try:
         payload = _json.dumps({
             "model": "sonar",
-            "max_tokens": 4000,
+            "max_tokens": 8000,
             "messages": [{"role": "user", "content": prompt}]
         }).encode()
         req = _req.Request(
@@ -2748,12 +2748,19 @@ async def engine_scrape(request: Request):
             except: pass
 
     # Process leads
-    seen = set()
+    seen_emails = set()
+    seen_names  = set()
     leads_out = []
     for l in leads_raw:
         if not isinstance(l, dict): continue
         email = (l.get("email") or "").strip().lower()
-        if not email or "@" not in email or email in seen: continue
+        if email and "@" in email:
+            if email in seen_emails: continue
+            seen_emails.add(email)
+        else:
+            email = ""
+            if biz_name and biz_name in seen_names: continue
+            if biz_name: seen_names.add(biz_name)
         seen.add(email)
 
         phone   = l.get("phone","") or ""
