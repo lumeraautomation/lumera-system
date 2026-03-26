@@ -789,17 +789,35 @@ function toast(msg,type=''){{
 function filterLeads(){{
   const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
   const h=document.getElementById('heatFilter')?.value||'all';
-  // Support both card and table row layouts
-  document.querySelectorAll('[data-heat]').forEach(el=>{{
+  const n=(document.getElementById('nicheFilter')?.value||'all');
+  document.querySelectorAll('.lead-card').forEach(el=>{{
     const mQ=!q||el.textContent.toLowerCase().includes(q);
     const mH=h==='all'||el.dataset.heat===h;
     el.style.display=(mQ&&mH)?'':'none';
   }});
+  // Show/hide niche sections based on filter and whether any cards visible
+  document.querySelectorAll('.niche-section').forEach(sec=>{{
+    const secNiche=sec.dataset.niche;
+    const nicheMatch=n==='all'||secNiche===n;
+    const visibleCards=sec.querySelectorAll('.lead-card:not([style*="display: none"]):not([style*="display:none"])');
+    sec.style.display=(nicheMatch&&visibleCards.length>0)?'':'none';
+  }});
 }}
 function setHeat(val){{
   document.getElementById('heatFilter').value=val;
-  document.querySelectorAll('.heat-btn').forEach(b=>b.classList.toggle('active',b.dataset.heat===val));
+  document.querySelectorAll('.heat-btn[data-heat]').forEach(b=>b.classList.toggle('active',b.dataset.heat===val));
   filterLeads();
+}}
+function setView(val){{
+  document.getElementById('view-card').classList.toggle('active',val==='card');
+  document.getElementById('view-list').classList.toggle('active',val==='list');
+  document.querySelectorAll('.leads-grid').forEach(g=>{{
+    if(val==='list'){{
+      g.style.gridTemplateColumns='1fr';
+    }} else {{
+      g.style.gridTemplateColumns='repeat(auto-fill,minmax(380px,1fr))';
+    }}
+  }});
 }}
 function toggleRow(idx,lead){{
   const card=document.getElementById('card-'+idx)||document.getElementById('row-'+idx);
@@ -989,7 +1007,7 @@ async function sendAllPending(){{
     if(status)status.textContent='Failed';
   }}finally{{
     btn.disabled=false;
-    btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Send All Pending';
+    btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Send Outreach to All';
   }}
 }}
 async function runFollowups(){{
@@ -1422,7 +1440,7 @@ def leads_page(request: Request):
             label, color, _ = need_label(si)
 
             web_link = f'<a href="{website}" target="_blank" style="color:var(--blue);font-size:12px">{website[:30]}...</a>' if has_web else '<span style="color:var(--muted);font-size:12px">No website</span>'
-            email_el = f'<a href="mailto:{email}" style="color:var(--blue);font-size:12px">{email}</a>' if has_email else '<span style="color:var(--muted);font-size:12px">—</span>'
+            email_el = f'<a href="mailto:{email}" style="color:var(--blue);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:100%">{email}</a>' if has_email else '<span style="color:var(--muted);font-size:12px">—</span>'
 
             send_btn = (
                 f'<button class="btn btn-primary btn-sm" id="gen-{idx}" onclick="genEmailB64({idx},\'{lead_b64}\')" style="width:100%"><i class="fa-solid fa-envelope"></i> Send Email</button>'
@@ -1473,7 +1491,7 @@ def leads_page(request: Request):
             </div>'''
 
         niches_html += f'''
-        <div style="margin-bottom:32px">
+        <div class="niche-section" data-niche="{niche}" style="margin-bottom:32px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px">
             <i class="fa-solid fa-layer-group" style="color:var(--indigo)"></i>{niche}
             <span style="color:var(--muted2)">{len(rows)} leads</span>
@@ -1481,6 +1499,8 @@ def leads_page(request: Request):
           <div class="leads-grid">{cards_html}</div>
         </div>'''
 
+
+    niche_options = "".join(f'<option value="{n}">{n} ({len(niche_map[n])})</option>' for n in sorted(niche_map.keys()))
     content = f"""
     <style>
     .leads-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;}}
@@ -1494,7 +1514,7 @@ def leads_page(request: Request):
       <div class="page-sub">{total} leads &nbsp;·&nbsp; {hot} high need &nbsp;·&nbsp; {warm} medium need</div></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-ghost" id="send-pending-btn" onclick="sendAllPending()">
-          <i class="fa-solid fa-paper-plane"></i> Send All Pending
+          <i class="fa-solid fa-paper-plane"></i> Send Outreach to All
         </button>
         <div id="pending-status" style="font-size:11px;color:var(--muted);align-self:center;font-family:monospace"></div>
       </div>
@@ -1504,11 +1524,19 @@ def leads_page(request: Request):
         <i class="fa-solid fa-magnifying-glass"></i>
         <input class="search-input" id="searchBox" placeholder="Search leads..." oninput="filterLeads()"/>
       </div>
+      <select class="filter-select" id="nicheFilter" onchange="filterLeads()" style="min-width:140px">
+        <option value="all">All Niches</option>
+        {niche_options}
+      </select>
       <input type="hidden" id="heatFilter" value="all"/>
       <button class="heat-btn active" data-heat="all" onclick="setHeat('all')">All</button>
       <button class="heat-btn" data-heat="hot" onclick="setHeat('hot')"><i class="fa-solid fa-fire"></i> High Need</button>
       <button class="heat-btn" data-heat="warm" onclick="setHeat('warm')">Medium Need</button>
       <button class="heat-btn" data-heat="cold" onclick="setHeat('cold')">Low Need</button>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="heat-btn active" id="view-card" onclick="setView('card')" title="Card View"><i class="fa-solid fa-grip"></i></button>
+        <button class="heat-btn" id="view-list" onclick="setView('list')" title="List View"><i class="fa-solid fa-list"></i></button>
+      </div>
     </div>
     <div class="bulk-bar" id="bulkBar">
       <span id="selCount">0 selected</span>
