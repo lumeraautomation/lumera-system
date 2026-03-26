@@ -1465,7 +1465,7 @@ def leads_page(request: Request):
                 <div style="flex-shrink:0">{gauge_html}</div>
               </div>
               <!-- INFO GRID -->
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border);min-width:0;overflow:hidden">
                 <div>
                   <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:3px">Phone</div>
                   <div style="font-size:12px;color:var(--text);font-weight:600">{phone}</div>
@@ -1474,9 +1474,9 @@ def leads_page(request: Request):
                   <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:3px">Website</div>
                   <div>{web_link}</div>
                 </div>
-                <div>
+                <div style="min-width:0;overflow:hidden">
                   <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:3px">Email</div>
-                  <div>{email_el}</div>
+                  <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{email_el}</div>
                 </div>
               </div>
               <!-- PROBLEM -->
@@ -1530,9 +1530,9 @@ def leads_page(request: Request):
       </select>
       <input type="hidden" id="heatFilter" value="all"/>
       <button class="heat-btn active" data-heat="all" onclick="setHeat('all')">All</button>
-      <button class="heat-btn" data-heat="hot" onclick="setHeat('hot')"><i class="fa-solid fa-fire"></i> High Need</button>
-      <button class="heat-btn" data-heat="warm" onclick="setHeat('warm')">Medium Need</button>
-      <button class="heat-btn" data-heat="cold" onclick="setHeat('cold')">Low Need</button>
+      <button class="heat-btn" data-heat="hot" onclick="setHeat('hot')"><i class="fa-solid fa-fire"></i> Hot</button>
+      <button class="heat-btn" data-heat="warm" onclick="setHeat('warm')">Warm</button>
+      <button class="heat-btn" data-heat="cold" onclick="setHeat('cold')">Cold</button>
       <div style="margin-left:auto;display:flex;gap:6px">
         <button class="heat-btn active" id="view-card" onclick="setView('card')" title="Card View"><i class="fa-solid fa-grip"></i></button>
         <button class="heat-btn" id="view-list" onclick="setView('list')" title="List View"><i class="fa-solid fa-list"></i></button>
