@@ -2696,7 +2696,7 @@ async def engine_scrape(request: Request):
 
     # Build Perplexity prompt
     prompt = (
-        f"Search for {count} local {niche} businesses in {city} that would benefit from lead generation or AI automation. "
+        f"Search for {count} small independently-owned {niche} businesses in {city}. Exclude chains, franchises, and any business with more than 300 Google reviews. Target owner-operated local businesses only. These should benefit from AI lead generation or automation. "
         f"For each find: 1) Real contact email from their website Contact/About page or Google listing "
         f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
         f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
@@ -2773,16 +2773,28 @@ async def engine_scrape(request: Request):
         has_bk  = l.get("has_booking","") or ""
         hours   = l.get("hours","") or ""
 
-        # Score
+        # Score — reward small owner-operated, penalize chains
         score = 0
-        if phone: score += 1
-        if website.lower() in ["none listed","none","n/a",""]: score += 2
-        if any(x in has_bk.lower() for x in ["no","false","none"]): score += 1
+        rev_count = 0
         try:
-            if int(''.join(c for c in reviews if c.isdigit()) or 0) >= 50: score += 1
+            rev_count = int(''.join(c for c in reviews if c.isdigit()) or 0)
         except: pass
-        if any(x in (hours+problem).lower() for x in ["closes","limited","no booking","phone"]): score += 1
-        score = min(score, 5)
+
+        # DISQUALIFY chains: 500+ reviews almost always means chain/franchise
+        if rev_count >= 500:
+            score = 0
+        else:
+            if phone: score += 1
+            if website.lower() in ["none listed","none","n/a",""]: score += 2
+            if any(x in has_bk.lower() for x in ["no","false","none"]): score += 1
+            # Sweet spot: busy enough to need help, small enough to reach owner
+            if 30 <= rev_count <= 300: score += 2
+            elif rev_count < 30: score += 1  # too new, lower confidence
+            # Owner email (gmail/yahoo = personal = reachable)
+            em = (l.get("email") or "").lower()
+            if any(x in em for x in ["gmail","yahoo","icloud","hotmail"]): score += 1
+            if any(x in (hours+problem).lower() for x in ["closes","limited","no booking","phone"]): score += 1
+            score = min(score, 5)
 
         leads_out.append({
             "Name": l.get("business","") or l.get("name",""),
