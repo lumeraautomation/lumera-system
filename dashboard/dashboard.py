@@ -3163,3 +3163,9 @@ def debug_login():
     rows = db_query("SELECT username, password FROM clients WHERE username='veturnai'")
     test = rows[0]["password"] == "trial2026" if rows else False
     return {"found": len(rows)>0, "password_match": test, "stored": rows[0]["password"] if rows else None}
+
+@app.get("/reset-client-password")
+def reset_client_password():
+    db_run("UPDATE clients SET password=? WHERE username=?", ("trial2026", "veturnai"))
+    rows = db_query("SELECT username, password FROM clients WHERE username='veturnai'")
+    return {"updated": rows}
