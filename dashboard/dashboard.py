@@ -2730,6 +2730,7 @@ async def engine_scrape(request: Request):
         return JSONResponse({"detail": f"Perplexity error: {e}"}, status_code=500)
 
     # Parse JSON from response
+    print(f"Perplexity raw response: {text[:500]}")
     text = text.replace("```json","").replace("```","").strip()
     start = text.find("["); end = text.rfind("]") + 1
     if start == -1: return JSONResponse({"detail":"No leads found in response"}, status_code=400)
