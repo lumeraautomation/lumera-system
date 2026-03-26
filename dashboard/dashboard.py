@@ -946,6 +946,75 @@ async function deleteClient(username){{
   await fetch('/api/clients/'+username,{{method:'DELETE'}});
   toast('Client removed');setTimeout(()=>location.reload(),600);
 }}
+async function engineScrape(){{
+  const niche  = document.getElementById('scrape-niche').value;
+  const city   = document.getElementById('scrape-city').value.trim();
+  const count  = document.getElementById('scrape-count').value;
+  const client = document.getElementById('scrape-client').value;
+  if(!city){{ toast('Enter a city','err'); return; }}
+  const btn = document.getElementById('engine-scrape-btn');
+  const status = document.getElementById('engine-status');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scraping...';
+  status.textContent = 'Calling Perplexity AI...';
+  try{{
+    const res = await fetch('/api/engine-scrape', {{
+      method:'POST', headers:{{'Content-Type':'application/json'}},
+      body: JSON.stringify({{niche, city, count: parseInt(count), client}})
+    }});
+    const d = await res.json();
+    if(!res.ok) throw new Error(d.detail||'Scrape failed');
+    status.textContent = '✅ ' + d.count + ' leads scraped';
+    const tbody = document.getElementById('engine-leads-tbody');
+    tbody.innerHTML = d.leads.map(l => `
+      <tr>
+        <td style="font-weight:700;font-size:12px">${{l.Name||'—'}}</td>
+        <td style="font-size:11px;color:var(--muted)">${{l.City||'—'}}</td>
+        <td style="font-size:11px">${{l.Phone||'—'}}</td>
+        <td style="font-size:11px;color:var(--blue)">${{l.Email||'—'}}</td>
+        <td style="font-size:11px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${{l.Problem||'—'}}</td>
+        <td><span class="badge ${{parseInt(l.Score)>=3?'b-hot':parseInt(l.Score)>=2?'b-warm':'b-cold'}}">${{l.Score||0}}</span></td>
+      </tr>`).join('');
+    document.getElementById('engine-results').style.display = 'block';
+    document.getElementById('engine-send-btn').style.display = d.count > 0 ? '' : 'none';
+    document.getElementById('engine-send-btn').dataset.file = d.file;
+    document.getElementById('engine-send-btn').dataset.client = client;
+    toast(d.count + ' leads ready', 'ok');
+  }}catch(e){{
+    status.textContent = '❌ ' + e.message;
+    toast(e.message,'err');
+  }}
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Scrape Leads';
+}}
+
+async function engineSend(){{
+  const btn = document.getElementById('engine-send-btn');
+  const file = btn.dataset.file;
+  const client = btn.dataset.client;
+  const status = document.getElementById('engine-status');
+  if(!file){{ toast('Scrape leads first','err'); return; }}
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+  status.textContent = 'Sending AI-personalized emails...';
+  try{{
+    const res = await fetch('/api/engine-send', {{
+      method:'POST', headers:{{'Content-Type':'application/json'}},
+      body: JSON.stringify({{file, client}})
+    }});
+    const d = await res.json();
+    if(!res.ok) throw new Error(d.detail||'Send failed');
+    status.textContent = '✅ ' + d.sent + ' emails sent, ' + d.failed + ' failed';
+    toast(d.sent + ' emails sent!','ok');
+    btn.style.display = 'none';
+  }}catch(e){{
+    status.textContent = '❌ ' + e.message;
+    toast(e.message,'err');
+  }}
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Outreach to These Leads';
+}}
+
 async function runScraper(){{
   const btn=document.getElementById('scraper-btn');
   btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Running...';
