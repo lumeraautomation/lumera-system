@@ -2809,6 +2809,198 @@ async def engine_send(request: Request):
 # ─────────────────────────────────────────────
 # ONE-TIME SETUP
 # ─────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# CLIENT PORTAL
+# ─────────────────────────────────────────────
+def is_client(username: str) -> bool:
+    if not username: return False
+    if username == ADMIN_USER: return False
+    rows = db_query("SELECT id FROM clients WHERE username=?", (username,))
+    return len(rows) > 0
+
+@app.get("/client-home", response_class=HTMLResponse)
+def client_home(request: Request):
+    user = get_current_user(request)
+    if not user: return RedirectResponse("/login")
+    if not is_client(user): return RedirectResponse("/overview")
+
+    outreach = get_all_outreach()
+    bookings = get_all_bookings()
+    total_sent    = len(outreach)
+    replied       = sum(1 for r in outreach if r.get("replied"))
+    pending       = sum(1 for r in outreach if not r.get("replied") and not r.get("unsubscribed") and r.get("step",1) < 3)
+    upcoming_book = [b for b in bookings if b["start_time"] >= datetime.now().isoformat() and b["status"] == "confirmed"]
+
+    actions_html = ""
+    if upcoming_book:
+        b = upcoming_book[0]
+        try: dts = datetime.fromisoformat(b["start_time"]).strftime("%A %b %d at %I:%M %p")
+        except: dts = b["start_time"][:16]
+        meet = b.get("meet_link","")
+        meet_btn = f'<a href="{meet}" target="_blank" class="btn btn-grad"><i class="fa-solid fa-video"></i> Join Call</a>' if meet else ""
+        actions_html += f'''<div class="action-card" style="border-left-color:#22c55e">
+          <h3><i class="fa-solid fa-calendar-check" style="color:#22c55e;margin-right:8px"></i>You have a call coming up</h3>
+          <p>Your strategy call is scheduled for <strong>{dts} CT</strong>. Make sure you're ready 5 minutes early.</p>
+          {meet_btn}</div>'''
+    if replied:
+        actions_html += f'''<div class="action-card" style="border-left-color:#3b82f6">
+          <h3><i class="fa-solid fa-reply" style="color:#3b82f6;margin-right:8px"></i>{replied} lead{"s" if replied>1 else ""} replied to your outreach</h3>
+          <p>Someone responded. Check your email inbox or view details below.</p>
+          <a href="/client-emails" class="btn btn-grad"><i class="fa-solid fa-envelope"></i> View Replies</a></div>'''
+    if pending > 0:
+        actions_html += f'''<div class="action-card">
+          <h3><i class="fa-solid fa-rotate" style="color:var(--indigo);margin-right:8px"></i>{pending} follow-up emails going out soon</h3>
+          <p>Your automated follow-up sequence is running. These emails go out automatically — no action needed.</p></div>'''
+    if not actions_html:
+        actions_html = '''<div class="action-card" style="border-left-color:var(--muted)">
+          <h3><i class="fa-solid fa-circle-check" style="color:var(--muted);margin-right:8px"></i>Everything is running smoothly</h3>
+          <p>Your outreach is active. New leads are added weekly and emails go out automatically. Check back soon for updates.</p></div>'''
+
+    _ci = db_query("SELECT * FROM clients WHERE username=?", (user,))
+    _niche = _ci[0].get("niche","") if _ci else ""
+    _biz   = _ci[0].get("business","") if _ci else ""
+
+    def mcard(icon, label, value, sub="", color="#818cf8", bg="rgba(99,102,241,.12)"):
+        return (
+            f'<div class="metric-card"><div class="m-icon" style="background:{bg};color:{color}">{icon}</div>'
+            f'<div class="m-label">{label}</div><div class="m-val" style="color:{color}">{value}</div>'
+            f'<div class="m-sub">{sub}</div></div>'
+        )
+
+    nb = f'<span style="font-weight:700;color:var(--indigo)">{_niche}</span><span style="color:var(--muted)"> &middot; </span>' if _niche else ""
+    bb = f'<span>{_biz}</span><span style="color:var(--muted)"> &middot; </span>' if _biz else ""
+
+    content_html = (
+        f'<div class="page-hdr"><div><div class="page-title">Welcome back, {user} \U0001f44b</div>'
+        f'<div class="page-sub">{nb}{bb}<span style="color:var(--green);font-weight:700">&#9679; Active</span></div></div>'
+        '<a href="/book" class="btn btn-grad"><i class="fa-solid fa-rocket"></i> Get Started</a></div>'
+        '<div class="metrics-grid">'
+        + mcard('<i class="fa-solid fa-paper-plane"></i>', "Emails Sent", total_sent, "total outreach sent")
+        + mcard('<i class="fa-solid fa-reply"></i>', "Replies Received", replied, "leads interested", "#4ade80", "rgba(34,197,94,.12)")
+        + mcard('<i class="fa-solid fa-rotate"></i>', "Follow-ups Pending", pending, "going out automatically", "#fbbf24", "rgba(245,158,11,.12)")
+        + mcard('<i class="fa-solid fa-calendar-check"></i>', "Calls Booked", len(upcoming_book), "upcoming", "#60a5fa", "rgba(59,130,246,.12)")
+        + '</div>'
+        + '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);margin-bottom:12px;display:flex;align-items:center;gap:6px">'
+        + '<i class="fa-solid fa-bell" style="color:var(--indigo)"></i> What needs your attention</div>'
+        + actions_html
+    )
+    return HTMLResponse(shell_client(content_html, "client-home", user))
+
+
+@app.get("/client-leads", response_class=HTMLResponse)
+def client_leads(request: Request):
+    user = get_current_user(request)
+    if not user: return RedirectResponse("/login")
+    if not is_client(user): return RedirectResponse("/leads")
+
+    client_rows = db_query("SELECT * FROM clients WHERE username=?", (user,))
+    client_niche = client_rows[0]["niche"] if client_rows else "*"
+    leads = load_all_leads()
+    if client_niche != "*":
+        leads = [l for l in leads if l.get("_niche","").lower() == client_niche.lower()]
+
+    total = len(leads)
+    hot   = sum(1 for l in leads if l["_heat"] == "hot")
+    rows_html = ""
+    for l in leads:
+        name    = str(l.get("Name","—"))
+        city    = str(l.get("City","—"))
+        phone   = str(l.get("Phone","")) or "—"
+        website = str(l.get("Website","—"))
+        problem = str(l.get("Problem","—"))
+        heat    = l.get("_heat","cold")
+        heat_color = "#f43f5e" if heat=="hot" else "#f59e0b" if heat=="warm" else "#6366f1"
+        heat_label = "High Need" if heat=="hot" else "Medium Need" if heat=="warm" else "Low Need"
+        has_web = website.lower() not in ["none listed","none","n/a","","nan"]
+        web_cell = f'<a href="{website}" target="_blank" style="color:var(--blue)">{website[:28]}...</a>' if has_web else '<span style="color:var(--muted)">No website</span>'
+        rows_html += f'''<tr>
+          <td style="font-weight:700">{name}</td>
+          <td style="color:var(--muted);font-size:12px">{city}</td>
+          <td style="font-size:12px">{phone}</td>
+          <td>{web_cell}</td>
+          <td style="font-size:11px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{problem}</td>
+          <td><span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:{heat_color}22;color:{heat_color}">{heat_label}</span></td>
+        </tr>'''
+
+    content_html = (
+        '<div class="page-hdr"><div><div class="page-title">My Leads</div>'
+        f'<div class="page-sub">{total} leads &nbsp;&middot;&nbsp; {hot} high priority</div></div></div>'
+        '<div class="card"><div class="card-title">Your Lead Pipeline</div>'
+        '<div class="tbl-wrap"><table>'
+        '<thead><tr><th>Business</th><th>City</th><th>Phone</th><th>Website</th><th>Why They Need You</th><th>Priority</th></tr></thead>'
+        f'<tbody>{rows_html or '<tr><td colspan="6" class="empty-state">Your leads will appear here once your first batch is ready.</td></tr>'}</tbody>'
+        '</table></div></div>'
+    )
+    return HTMLResponse(shell_client(content_html, "client-leads", user))
+
+
+@app.get("/client-emails", response_class=HTMLResponse)
+def client_emails(request: Request):
+    user = get_current_user(request)
+    if not user: return RedirectResponse("/login")
+    if not is_client(user): return RedirectResponse("/outreach")
+
+    outreach = get_all_outreach()
+    total   = len(outreach)
+    replied = sum(1 for r in outreach if r.get("replied"))
+    pending = sum(1 for r in outreach if not r.get("replied") and not r.get("unsubscribed") and r.get("step",1) < 3)
+
+    rows_html = ""
+    for r in outreach:
+        replied_f = r.get("replied",0)
+        unsub     = r.get("unsubscribed",0)
+        step      = r.get("step",1)
+        email     = r.get("email","")
+        business  = r.get("business","—")
+        enrolled  = r.get("enrolled_at","")[:10]
+        if replied_f:
+            status_html = '<span class="badge b-replied">Replied ✓</span>'
+            next_html   = '<span style="color:#22c55e;font-size:12px">Done</span>'
+        elif unsub:
+            status_html = '<span class="badge b-unsubscribed">Unsubscribed</span>'
+            next_html   = '—'
+        else:
+            status_html = '<span class="badge b-sent">Active</span>'
+            try:
+                ns = datetime.fromisoformat(r.get("next_send_at","")) if r.get("next_send_at") else None
+                next_html = f'<span style="font-size:12px;color:var(--muted)">{ns.strftime("%b %d") if ns else "Done"}</span>'
+            except: next_html = '—'
+        step_dots = "".join(
+            f'<div style="width:8px;height:8px;border-radius:50%;background:{"#6366f1" if i<=step else "rgba(255,255,255,0.1)"}"></div>'
+            for i in range(1,4)
+        )
+        rows_html += f'''<tr>
+          <td style="font-weight:700">{business}</td>
+          <td style="font-size:12px;color:var(--muted)">{email}</td>
+          <td>{status_html}</td>
+          <td><div style="display:flex;gap:4px;align-items:center">{step_dots}<span style="font-size:11px;color:var(--muted);margin-left:4px">Step {step}/3</span></div></td>
+          <td>{next_html}</td>
+          <td style="font-size:11px;color:var(--muted)">{enrolled}</td>
+        </tr>'''
+
+    def mcard(icon, label, value, sub="", color="#818cf8", bg="rgba(99,102,241,.12)"):
+        return (
+            f'<div class="metric-card"><div class="m-icon" style="background:{bg};color:{color}">{icon}</div>'
+            f'<div class="m-label">{label}</div><div class="m-val" style="color:{color}">{value}</div>'
+            f'<div class="m-sub">{sub}</div></div>'
+        )
+
+    content_html = (
+        '<div class="page-hdr"><div><div class="page-title">My Emails</div>'
+        '<div class="page-sub">Track every email sent on your behalf</div></div></div>'
+        '<div class="metrics-grid">'
+        + mcard('<i class="fa-solid fa-paper-plane"></i>', "Total Sent", total, "emails sent")
+        + mcard('<i class="fa-solid fa-reply"></i>', "Replied", replied, "interested leads", "#4ade80", "rgba(34,197,94,.12)")
+        + mcard('<i class="fa-solid fa-rotate"></i>', "Pending", pending, "in sequence", "#fbbf24", "rgba(245,158,11,.12)")
+        + '</div>'
+        + '<div class="card"><div class="tbl-wrap"><table>'
+        + '<thead><tr><th>Business</th><th>Email</th><th>Status</th><th>Sequence</th><th>Next Send</th><th>Enrolled</th></tr></thead>'
+        + f'<tbody>{rows_html or '<tr><td colspan="6" class="empty-state">No emails sent yet.</td></tr>'}</tbody>'
+        + '</table></div></div>'
+    )
+    return HTMLResponse(shell_client(content_html, "client-emails", user))
+
+
 @app.get("/check-veturnai")
 def check_veturnai():
     rows = db_query("SELECT username, password, business, niche, status FROM clients WHERE username='veturnai'")
