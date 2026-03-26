@@ -24,7 +24,7 @@ FROM_EMAIL           = os.getenv("FROM_EMAIL", "kory@lumeraautomation.com")
 SERVICE_ACCOUNT_JSON = os.getenv("SERVICE_ACCOUNT_JSON")
 CALENDAR_ID          = os.getenv("CALENDAR_ID")
 MEET_LINK            = os.getenv("MEET_LINK", "https://meet.google.com/new")
-DB_PATH              = Path(__file__).parent.parent / "outreach.db"
+DB_PATH              = Path(__file__).parent / "outreach.db"
 DAILY_LEADS_DIR      = Path(__file__).parent.parent / "daily_leads"
 DAILY_LEADS_DIR.mkdir(exist_ok=True)  # Create if not exists (important on Render)
 SCRIPTS_DIR          = Path(__file__).parent.parent / "scripts"
@@ -1060,10 +1060,7 @@ input:focus{{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(99,102,241,.12
 @app.post("/login")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
     from datetime import timedelta
-    print(f"LOGIN ATTEMPT: username={repr(username)} password={repr(password)}")
-    print(f"DB_PATH: {DB_PATH}")
-    _debug = db_query("SELECT username, password FROM clients WHERE username=?", (username,))
-    print(f"DB QUERY RESULT: {_debug}")
+
     expires = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
     if username == ADMIN_USER and password == ADMIN_PASS:
         token = secrets.token_hex(32)
