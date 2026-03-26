@@ -3362,7 +3362,36 @@ async def send_all_pending(request: Request):
     sent = failed = 0
     for lead in pending:
         email = lead["_email_clean"]
-        prompt = f"""You are an outreach specialist for Lumera Automation, which builds AI lead generation systems for local service businesses.
+        # Try to scrape one specific detail from their website
+    website_detail = ""
+    website = lead.get("Website", "")
+    if website and website.lower() not in ["none listed", "none", "n/a", "", "nan"]:
+        try:
+            import urllib.request as _ureq
+            from html.parser import HTMLParser
+            class _P(HTMLParser):
+                def __init__(self):
+                    super().__init__(); self.text = []; self.skip = False
+                def handle_starttag(self, t, a):
+                    if t in ("script","style","nav","footer"): self.skip = True
+                def handle_endtag(self, t):
+                    if t in ("script","style","nav","footer"): self.skip = False
+                def handle_data(self, d):
+                    if not self.skip and d.strip(): self.text.append(d.strip())
+            req = _ureq.Request(website, headers={"User-Agent":"Mozilla/5.0"})
+            with _ureq.urlopen(req, timeout=5) as r:
+                html = r.read().decode("utf-8","ignore")
+            p = _P(); p.feed(html)
+            raw_text = " ".join(p.text)[:1500]
+            # Ask GPT to pull one specific detail
+            detail_res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role":"user","content":f"Read this website text and extract ONE specific unique detail about this business (a specific service, specialty, award, tagline, or something that makes them stand out). Return just 1 sentence, no fluff.\n\n{raw_text}"}],
+                max_tokens=80, temperature=0.3)
+            website_detail = detail_res.choices[0].message.content.strip()
+        except: pass
+
+    prompt = f"""You are an outreach specialist for Lumera Automation, which builds AI lead generation systems for local service businesses.
 
 Write a short personalised cold outreach email:
 - Business: {lead.get('Name','there')}
@@ -3371,8 +3400,10 @@ Write a short personalised cold outreach email:
 - Problem: {lead.get('Problem','')}
 - Website: {lead.get('Website','')}
 {"- Owner: "+lead.get('Owner','') if lead.get('Owner') else ""}
+{"- Specific detail from their website: "+website_detail if website_detail else ""}
 
 Rules: Address by first name if known. Subject under 10 words specific to their problem.
+Opening line: reference the specific website detail naturally — make it clear you actually looked at their business.
 Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
 CTA: get started at https://app.lumeraautomation.com/book
 Sign off: Kory, Lumera Automation. No "I hope this finds you well".
