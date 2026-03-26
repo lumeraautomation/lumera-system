@@ -26,7 +26,7 @@ CALENDAR_ID          = os.getenv("CALENDAR_ID")
 MEET_LINK            = os.getenv("MEET_LINK", "https://meet.google.com/new")
 DB_PATH              = Path("/data/outreach.db")
 DAILY_LEADS_DIR      = Path("/data/daily_leads")
-DAILY_LEADS_DIR.mkdir(exist_ok=True)  # Create if not exists (important on Render)
+DAILY_LEADS_DIR.mkdir(parents=True, exist_ok=True)  # Create if not exists (important on Render)
 SCRIPTS_DIR          = Path(__file__).parent.parent / "scripts"
 CENTRAL              = pytz.timezone("America/Chicago")
 CALL_DURATION_MINS   = 30
