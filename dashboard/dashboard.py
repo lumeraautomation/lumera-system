@@ -2697,7 +2697,7 @@ async def engine_scrape(request: Request):
     # Build Perplexity prompt
     prompt = (
         f"Search for {count} small independently-owned {niche} businesses in {city}. Exclude chains, franchises, and any business with more than 300 Google reviews. Target owner-operated local businesses only. These should benefit from AI lead generation or automation. "
-        f"For each find: 1) Real contact email from their website Contact/About page or Google listing "
+        f"For each business you MUST find a real contact email - check their website Contact page, About page, Google listing, and Facebook page. Only include businesses where you can find an email. For each also find: 1) Real contact email (REQUIRED - skip business if not found) "
         f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
         f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
         f"8) Their biggest visible weakness or problem. "
@@ -2755,12 +2755,17 @@ async def engine_scrape(request: Request):
     for l in leads_raw:
         if not isinstance(l, dict): continue
         email = (l.get("email") or "").strip().lower()
-        biz_name = (l.get("business") or l.get("name") or "").strip().lower()
-        if email and "@" in email:
+        # Drop leads with no email AND no phone — need at least one contact method
+        phone_check = (l.get("phone") or "").strip()
+        has_email = email and "@" in email and "example.com" not in email
+        has_phone = phone_check and phone_check not in ["—","","nan","None"]
+        if not has_email and not has_phone:
+            continue
+        if has_email:
             if email in seen_emails: continue
             seen_emails.add(email)
         else:
-            email = ""
+            biz_name = (l.get("business") or l.get("name") or "").strip().lower()
             if biz_name and biz_name in seen_names: continue
             if biz_name: seen_names.add(biz_name)
         seen_emails.add(email)
