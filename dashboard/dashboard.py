@@ -3004,7 +3004,11 @@ def client_emails(request: Request):
 @app.get("/check-veturnai")
 def check_veturnai():
     rows = db_query("SELECT username, password, business, niche, status FROM clients WHERE username='veturnai'")
-    return JSONResponse({"rows": rows})
+    # Also test password match directly
+    match = False
+    if rows:
+        match = rows[0]["password"] == "trial2026"
+    return JSONResponse({"rows": rows, "password_match": match, "stored_pw_repr": repr(rows[0]["password"]) if rows else None})
 
 @app.get("/setup-veturnai")
 def setup_veturnai():
