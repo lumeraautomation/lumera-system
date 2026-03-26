@@ -795,18 +795,39 @@ function toast(msg,type=''){{
 function filterLeads(){{
   const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
   const h=document.getElementById('heatFilter')?.value||'all';
-  // Support both card and table row layouts
-  document.querySelectorAll('[data-heat]').forEach(el=>{{
+  const n=(document.getElementById('nicheFilter')?.value||'').toLowerCase();
+  document.querySelectorAll('.lead-card,[data-heat]').forEach(el=>{{
     const mQ=!q||el.textContent.toLowerCase().includes(q);
     const mH=h==='all'||el.dataset.heat===h;
-    el.style.display=(mQ&&mH)?'':'none';
+    const mN=!n||el.textContent.toLowerCase().includes(n);
+    el.style.display=(mQ&&mH&&mN)?'':'none';
+  }});
+  // Hide empty niche sections
+  document.querySelectorAll('[data-niche-section]').forEach(sec=>{{
+    const visible=[...sec.querySelectorAll('.lead-card')].some(c=>c.style.display!=='none');
+    sec.style.display=visible?'':'none';
   }});
 }}
 function setHeat(val){{
   document.getElementById('heatFilter').value=val;
-  document.querySelectorAll('.heat-btn').forEach(b=>b.classList.toggle('active',b.dataset.heat===val));
+  document.querySelectorAll('.heat-btn[data-heat]').forEach(b=>b.classList.toggle('active',b.dataset.heat===val));
   filterLeads();
 }}
+function setView(v){{
+  const cards=document.querySelectorAll('.leads-grid');
+  if(v==='list'){{
+    cards.forEach(g=>{{g.style.gridTemplateColumns='1fr';}});
+    document.getElementById('view-list')?.classList.add('active');
+    document.getElementById('view-card')?.classList.remove('active');
+  }}else{{
+    cards.forEach(g=>{{g.style.gridTemplateColumns='';}});
+    document.getElementById('view-card')?.classList.add('active');
+    document.getElementById('view-list')?.classList.remove('active');
+  }}
+  localStorage.setItem('leads-view',v);
+}}
+// Restore view preference
+(function(){{const v=localStorage.getItem('leads-view');if(v)setTimeout(()=>setView(v),100);}})();
 function toggleRow(idx,lead){{
   const card=document.getElementById('card-'+idx)||document.getElementById('row-'+idx);
   const cb=document.getElementById('cb-'+idx)||document.getElementById('sel-'+idx);
@@ -1463,6 +1484,7 @@ def leads_page(request: Request):
           <div style="font-size:9px;font-weight:700;color:{color};text-transform:uppercase;letter-spacing:.06em;text-align:center">{label}</div>
         </div>'''
 
+    niche_opts = " ".join(f'<option value="{n}">{n}</option>' for n in sorted(niche_map.keys()))
     niches_html = ""
     import random as _random
 
@@ -1549,7 +1571,7 @@ def leads_page(request: Request):
             </div>'''
 
         niches_html += f'''
-        <div style="margin-bottom:32px">
+        <div style="margin-bottom:32px" data-niche-section="{niche}">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px">
             <i class="fa-solid fa-layer-group" style="color:var(--indigo)"></i>{niche}
             <span style="color:var(--muted2)">{len(rows)} leads</span>
@@ -1585,6 +1607,12 @@ def leads_page(request: Request):
       <button class="heat-btn" data-heat="hot" onclick="setHeat('hot')"><i class="fa-solid fa-fire"></i> High Need</button>
       <button class="heat-btn" data-heat="warm" onclick="setHeat('warm')">Medium Need</button>
       <button class="heat-btn" data-heat="cold" onclick="setHeat('cold')">Low Need</button>
+      <select id="nicheFilter" onchange="filterLeads()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;outline:none;margin-left:4px">
+        <option value="">All Niches</option>
+        {niche_opts}
+      </select>
+      <button class="heat-btn" onclick="setView('card')" id="view-card" title="Card view"><i class="fa-solid fa-grip"></i></button>
+      <button class="heat-btn" onclick="setView('list')" id="view-list" title="List view"><i class="fa-solid fa-list"></i></button>
     </div>
     <div class="bulk-bar" id="bulkBar">
       <span id="selCount">0 selected</span>
@@ -1593,7 +1621,8 @@ def leads_page(request: Request):
       </button>
       <button class="btn btn-ghost btn-sm" onclick="clearSel()">Clear</button>
     </div>
-    {niches_html or '<div class="empty-state">No leads. Run your scraper first.</div>'}"""
+    {niches_html or '<div class="empty-state">No leads. Run your scraper first.</div>'}
+    <div id="leads-list-view" style="display:none"></div>"""
     return HTMLResponse(shell(content, "leads", user))
 
 
