@@ -2809,6 +2809,11 @@ async def engine_send(request: Request):
 # ─────────────────────────────────────────────
 # ONE-TIME SETUP
 # ─────────────────────────────────────────────
+@app.get("/check-veturnai")
+def check_veturnai():
+    rows = db_query("SELECT username, password, business, niche, status FROM clients WHERE username='veturnai'")
+    return JSONResponse({"rows": rows})
+
 @app.get("/setup-veturnai")
 def setup_veturnai():
     try:
