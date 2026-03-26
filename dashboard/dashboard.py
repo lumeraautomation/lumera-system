@@ -2761,7 +2761,7 @@ async def engine_scrape(request: Request):
             email = ""
             if biz_name and biz_name in seen_names: continue
             if biz_name: seen_names.add(biz_name)
-        seen.add(email)
+        seen_emails.add(email)
 
         phone   = l.get("phone","") or ""
         website = l.get("website","") or "None listed"
