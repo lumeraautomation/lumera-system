@@ -1720,29 +1720,40 @@ def client_home(request: Request):
           <p>Your outreach is active. New leads are added weekly and emails go out automatically. Check back soon for updates.</p>
         </div>'''
 
-    # Stats row
-    def ccard(icon, label, value, color="var(--indigo)"):
+    # Get client info for niche display
+    client_info = db_query("SELECT * FROM clients WHERE username=?", (user,))
+    client_niche = client_info[0].get("niche","") if client_info else ""
+    client_biz   = client_info[0].get("business","") if client_info else ""
+
+    def mcard(icon, label, value, sub="", grad="linear-gradient(135deg,#3b82f6,#6366f1)"):
         return f'''<div class="metric-card">
-          <div style="font-size:22px;margin-bottom:8px">{icon}</div>
-          <div style="font-size:28px;font-weight:800;color:{color}">{value}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:600">{label}</div>
+          <div class="m-icon" style="background:{grad}22;border:1px solid {grad.split(",")[1].strip().rstrip(")")+"33" if "," in grad else "#6366f133"}">{icon}</div>
+          <div class="m-label">{label}</div>
+          <div class="m-val" style="background:{grad};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">{value}</div>
+          <div class="m-delta">{sub}</div>
         </div>'''
 
     content_html = f'''
     <div class="page-hdr">
       <div>
         <div class="page-title">Welcome back, {user} 👋</div>
-        <div class="page-sub">Here's what's happening with your leads today</div>
+        <div class="page-sub">
+          {f'<span style="color:var(--indigo);font-weight:700">{client_niche}</span> &nbsp;·&nbsp; ' if client_niche else ""}
+          {f'<span>{client_biz}</span> &nbsp;·&nbsp; ' if client_biz else ""}
+          <span style="color:var(--green);font-weight:700">● Active</span>
+        </div>
       </div>
-      <a href="/book" class="btn btn-primary"><i class="fa-solid fa-calendar-plus"></i> Book a Call</a>
+      <a href="/book" class="btn btn-indigo"><i class="fa-solid fa-arrow-right"></i> Get Started</a>
     </div>
     <div class="metrics-grid">
-      {ccard('<i class="fa-solid fa-paper-plane" style="color:var(--indigo)"></i>', "Emails Sent", total_sent)}
-      {ccard('<i class="fa-solid fa-reply" style="color:#22c55e"></i>', "Replies Received", replied, "#22c55e")}
-      {ccard('<i class="fa-solid fa-clock" style="color:#f59e0b"></i>', "Follow-ups Pending", pending, "#f59e0b")}
-      {ccard('<i class="fa-solid fa-calendar-check" style="color:#3b82f6"></i>', "Calls Booked", len(upcoming_book), "#3b82f6")}
+      {mcard('<i class="fa-solid fa-paper-plane" style="color:#818cf8"></i>', "Emails Sent", total_sent, "total outreach sent")}
+      {mcard('<i class="fa-solid fa-reply" style="color:#4ade80"></i>', "Replies Received", replied, "leads interested", "linear-gradient(135deg,#22c55e,#16a34a)")}
+      {mcard('<i class="fa-solid fa-rotate" style="color:#fbbf24"></i>', "Follow-ups Pending", pending, "sending automatically", "linear-gradient(135deg,#f59e0b,#f97316)")}
+      {mcard('<i class="fa-solid fa-calendar-check" style="color:#60a5fa"></i>', "Calls Booked", len(upcoming_book), "upcoming", "linear-gradient(135deg,#3b82f6,#6366f1)")}
     </div>
-    <div style="margin-bottom:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">What needs your attention</div>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);margin-bottom:12px">
+      <i class="fa-solid fa-bell" style="margin-right:6px;color:var(--indigo)"></i>What needs your attention
+    </div>
     {actions_html}
     '''
     return HTMLResponse(shell_client(content_html, "client-home", user))
