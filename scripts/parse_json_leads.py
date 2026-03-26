@@ -30,8 +30,24 @@ if start == -1 or end == 0:
 try:
     leads_raw = json.loads(text[start:end])
 except json.JSONDecodeError as e:
-    print(f"JSON parse error: {e}")
-    sys.exit(1)
+    # Sometimes Perplexity returns multiple arrays — try merging them
+    try:
+        import re as _re
+        arrays = _re.findall(r'\[.*?\]', text, _re.DOTALL)
+        merged = []
+        for arr in arrays:
+            try:
+                merged.extend(json.loads(arr))
+            except: pass
+        if merged:
+            leads_raw = merged
+            print(f"Merged {len(arrays)} arrays into {len(merged)} leads")
+        else:
+            print(f"JSON parse error: {e}")
+            sys.exit(1)
+    except Exception as e2:
+        print(f"JSON parse error: {e}")
+        sys.exit(1)
 
 def valid_email(email):
     if not email: return False
@@ -73,6 +89,7 @@ leads = []
 seen_emails = set()
 
 for l in leads_raw:
+    if not isinstance(l, dict): continue  # skip ints/nulls from merged arrays
     email = (l.get("email") or "").strip()
     if not valid_email(email): continue
     if email in seen_emails: continue
