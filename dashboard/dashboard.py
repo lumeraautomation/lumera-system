@@ -3116,3 +3116,14 @@ def init_leads_table():
     conn.commit()
     conn.close()
     return {"status": "leads table created"}
+
+@app.get("/setup-trial-client")
+def setup_trial_client():
+    from datetime import datetime
+    db_run("""INSERT OR IGNORE INTO clients (username, password, niche, email, business, status, start_date, notes, created_at)
+        VALUES (?,?,?,?,?,?,?,?,?)""",
+        ("veturnai","trial2026","restaurant","","Veturn AI","active",
+         datetime.now().strftime("%Y-%m-%d"),
+         "Trial - NJ restaurants, books via veturn.ai/contact",
+         datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    return {"status": "client created"}
