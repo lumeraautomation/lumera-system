@@ -2806,6 +2806,24 @@ async def engine_send(request: Request):
 
 
 # ─────────────────────────────────────────────
+# ONE-TIME SETUP
+# ─────────────────────────────────────────────
+@app.get("/setup-veturnai")
+def setup_veturnai():
+    try:
+        db_run("""INSERT OR REPLACE INTO clients
+            (username,password,niche,email,business,monthly_fee,setup_fee,status,start_date,notes,created_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            ("veturnai","trial2026","restaurant","kory@lumeraautomation.com",
+             "Veturn AI",0,0,"active",datetime.now().strftime("%Y-%m-%d"),
+             "Trial client — NJ restaurants — booking link: veturn.ai/contact",
+             datetime.now().isoformat()))
+        return JSONResponse({"ok":True,"message":"veturnai client created — login at /login"})
+    except Exception as e:
+        return JSONResponse({"ok":False,"error":str(e)})
+
+
+# ─────────────────────────────────────────────
 # API ROUTES
 # ─────────────────────────────────────────────
 @app.post("/api/generate-email")
