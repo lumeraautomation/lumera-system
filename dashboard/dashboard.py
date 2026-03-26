@@ -2817,16 +2817,36 @@ def check_veturnai():
 @app.get("/setup-veturnai")
 def setup_veturnai():
     try:
-        db_run("""INSERT OR REPLACE INTO clients
-            (username,password,niche,email,business,monthly_fee,setup_fee,status,start_date,notes,created_at)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-            ("veturnai","trial2026","restaurant","kory@lumeraautomation.com",
-             "Veturn AI",0,0,"active",datetime.now().strftime("%Y-%m-%d"),
-             "Trial client — NJ restaurants — booking link: veturn.ai/contact",
-             datetime.now().isoformat()))
-        return JSONResponse({"ok":True,"message":"veturnai client created — login at /login"})
+        # First check what columns exist
+        with __import__('sqlite3').connect(DB_PATH) as conn:
+            cols = [row[1] for row in conn.execute("PRAGMA table_info(clients)").fetchall()]
+
+        # Build insert with only existing columns
+        data = {
+            "username": "veturnai",
+            "password": "trial2026",
+            "status": "active",
+            "created_at": datetime.now().isoformat(),
+        }
+        optional = {
+            "niche": "restaurant",
+            "email": "kory@lumeraautomation.com",
+            "business": "Veturn AI",
+            "monthly_fee": 0,
+            "setup_fee": 0,
+            "start_date": datetime.now().strftime("%Y-%m-%d"),
+            "notes": "Trial client — NJ restaurants — booking: veturn.ai/contact",
+        }
+        for k, v in optional.items():
+            if k in cols:
+                data[k] = v
+
+        keys = ", ".join(data.keys())
+        placeholders = ", ".join(["?" for _ in data])
+        db_run(f"INSERT OR REPLACE INTO clients ({keys}) VALUES ({placeholders})", list(data.values()))
+        return JSONResponse({"ok": True, "message": "veturnai client created — login at /login", "cols": cols})
     except Exception as e:
-        return JSONResponse({"ok":False,"error":str(e)})
+        return JSONResponse({"ok": False, "error": str(e)})
 
 
 # ─────────────────────────────────────────────
