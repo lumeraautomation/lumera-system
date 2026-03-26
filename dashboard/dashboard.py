@@ -2701,9 +2701,9 @@ async def engine_scrape(request: Request):
         f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
         f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
         f"8) Their biggest visible weakness or problem. "
-        f"Only include businesses with a confirmed real email. "
-        f'Return ONLY a valid JSON array: [{{"business":"Name","website":"https://...","email":"info@...","name":"FirstName","phone":"","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"specific weakness"}}]. '
-        f"Do not include businesses without a confirmed real email."
+        f"Include ALL {count} businesses even if email is not found - use empty string for missing email. "
+        f'Return ONLY a valid JSON array of exactly {count} objects: [{{"business":"Name","website":"https://...","email":"info@...","name":"FirstName","phone":"555-123-4567","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"specific weakness"}}]. '
+        f"No markdown, no explanation, just the JSON array."
     )
 
     import urllib.request as _req
@@ -2712,6 +2712,7 @@ async def engine_scrape(request: Request):
     try:
         payload = _json.dumps({
             "model": "sonar",
+            "max_tokens": 4000,
             "messages": [{"role": "user", "content": prompt}]
         }).encode()
         req = _req.Request(
