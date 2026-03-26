@@ -3157,3 +3157,9 @@ def fix_trial_client():
          datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     rows = db_query("SELECT username, password FROM clients")
     return {"clients": rows}
+
+@app.get("/debug-login")
+def debug_login():
+    rows = db_query("SELECT username, password FROM clients WHERE username='veturnai'")
+    test = rows[0]["password"] == "trial2026" if rows else False
+    return {"found": len(rows)>0, "password_match": test, "stored": rows[0]["password"] if rows else None}
