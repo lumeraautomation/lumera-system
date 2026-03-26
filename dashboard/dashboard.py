@@ -195,6 +195,9 @@ def init_db():
         except: pass
         conn.commit()
 
+        try:
+            conn.execute("INSERT OR IGNORE INTO clients (username, password, niche, email, business, status, start_date, notes, created_at) VALUES (?,?,?,?,?,?,?,?,?)", ("veturnai","trial2026","restaurant","","Veturn AI","active","2026-03-25","Trial - NJ restaurants","2026-03-25 00:00:00"))
+        except: pass
 init_db()
 
 def db_query(sql, params=()):
