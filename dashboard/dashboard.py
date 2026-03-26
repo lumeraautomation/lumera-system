@@ -3132,3 +3132,12 @@ def setup_trial_client():
 def check_client():
     rows = db_query("SELECT username, password, status FROM clients")
     return {"clients": rows}
+
+@app.get("/debug-db")
+def debug_db():
+    import os
+    return {
+        "db_path": str(DB_PATH),
+        "db_exists": DB_PATH.exists(),
+        "cwd": os.getcwd()
+    }
