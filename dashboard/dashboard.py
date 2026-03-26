@@ -193,11 +193,11 @@ def init_db():
         try:
             conn.execute("ALTER TABLE bookings ADD COLUMN meet_link TEXT")
         except: pass
-        conn.commit()
 
         try:
             conn.execute("INSERT OR IGNORE INTO clients (username, password, niche, email, business, status, start_date, notes, created_at) VALUES (?,?,?,?,?,?,?,?,?)", ("veturnai","trial2026","restaurant","","Veturn AI","active","2026-03-25","Trial - NJ restaurants","2026-03-25 00:00:00"))
         except: pass
+        conn.commit()
 init_db()
 
 def db_query(sql, params=()):
