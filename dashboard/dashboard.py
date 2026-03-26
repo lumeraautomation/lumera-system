@@ -636,10 +636,10 @@ td.bold{{color:var(--text);font-weight:700;}}
   align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);}}
 .modal-overlay.open{{display:flex;}}
 .modal{{background:var(--surface);border:1px solid var(--border2);border-radius:18px;
-  padding:28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;}}
+  padding:28px;width:100%;max-width:500px;max-height:88vh;overflow-y:auto;}}
 .modal h3{{font-size:15px;font-weight:800;margin-bottom:20px;color:var(--text);}}
 .modal-btns{{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}}
-.email-modal{{max-width:580px;}}
+.email-modal{{max-width:580px;max-height:88vh;}}
 
 /* TOAST */
 .toast{{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border2);
@@ -796,7 +796,7 @@ function filterLeads(){{
   const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
   const h=document.getElementById('heatFilter')?.value||'all';
   const n=(document.getElementById('nicheFilter')?.value||'').toLowerCase();
-  document.querySelectorAll('.lead-card,[data-heat]').forEach(el=>{{
+  document.querySelectorAll('.lead-card').forEach(el=>{{
     const mQ=!q||el.textContent.toLowerCase().includes(q);
     const mH=h==='all'||el.dataset.heat===h;
     const mN=!n||el.textContent.toLowerCase().includes(n);
