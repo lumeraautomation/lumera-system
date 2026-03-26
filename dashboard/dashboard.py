@@ -2703,7 +2703,7 @@ async def engine_scrape(request: Request):
         f"8) Their biggest visible weakness or problem. "
         f"Include ALL {count} businesses even if email is not found - use empty string for missing email. "
         f'Return ONLY a valid JSON array of exactly {count} objects: [{{"business":"Name","website":"https://...","email":"info@...","name":"FirstName","phone":"555-123-4567","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"specific weakness"}}]. '
-        f"No markdown, no explanation, just the JSON array."
+        f"IMPORTANT: Respond with ONLY the raw JSON array. No markdown, no explanation, no refusals. If you cannot find an email use empty string. Always return all 20 businesses."
     )
 
     import urllib.request as _req
@@ -2755,6 +2755,7 @@ async def engine_scrape(request: Request):
     for l in leads_raw:
         if not isinstance(l, dict): continue
         email = (l.get("email") or "").strip().lower()
+        biz_name = (l.get("business") or l.get("name") or "").strip().lower()
         if email and "@" in email:
             if email in seen_emails: continue
             seen_emails.add(email)
