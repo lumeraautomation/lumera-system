@@ -14,6 +14,7 @@ import json
 import re
 import os
 import pytz
+import random
 
 load_dotenv(Path(__file__).parent.parent / "config.env")
 
@@ -1072,7 +1073,7 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         token = secrets.token_hex(32)
         db_run("INSERT OR REPLACE INTO sessions(token,username,expires_at) VALUES(?,?,?)",
                (token, username, expires))
-        resp = RedirectResponse("/leads", status_code=303)
+        resp = RedirectResponse("/client-home", status_code=303)
         resp.set_cookie("lumera_token", token, httponly=True, max_age=86400*7)
         return resp
     return RedirectResponse("/login?error=Invalid+credentials", status_code=303)
@@ -1369,7 +1370,7 @@ def leads_page(request: Request):
         # Map score 0-5 to 0-100
         pct = min(int(score / 5 * 100), 100)
         # Display score as 0-100 like LeadRadar
-        display = min(pct + random.randint(5,15), 99) if pct < 85 else pct
+        display = pct
         r = 28
         circ = 2 * 3.14159 * r
         dash = circ * pct / 100
