@@ -1060,6 +1060,7 @@ input:focus{{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(99,102,241,.12
 @app.post("/login")
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
     from datetime import timedelta
+    print(f"LOGIN ATTEMPT: username={repr(username)} password={repr(password)}")
     expires = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
     if username == ADMIN_USER and password == ADMIN_PASS:
         token = secrets.token_hex(32)
