@@ -53,110 +53,26 @@ def is_client(username: str) -> bool:
     return len(rows) > 0
 
 def shell_client(content: str, active: str = "client-home", user: str = "") -> str:
-    nav_items = [
-        ("client-home",  "fa-house",        "Home"),
-        ("client-leads", "fa-crosshairs",   "My Leads"),
-        ("client-emails","fa-paper-plane",  "My Emails"),
-        ("book",         "fa-calendar-plus","Book a Call"),
-    ]
-    nav_html = ""
-    for key, icon, label in nav_items:
-        cls = "active" if key == active else ""
-        nav_html += f'<button class="nav-item {cls}" onclick="window.location=\'/{key}\'"><i class="fa-solid {icon}"></i>{label}</button>'
+    _nav_items = [("client-home","fa-house","Home"),("client-leads","fa-crosshairs","My Leads"),("client-emails","fa-paper-plane","My Emails"),("book","fa-rocket","Get Started")]
+    _nav = "".join("<button class=\"nav-item " + ("active" if k==active else "") + "\" onclick=\"window.location='/" + k + "'\"><i class=\"fa-solid " + ic + "\"></i>" + lb + "</button>" for k,ic,lb in _nav_items)
+    _u = user[0].upper() if user else "?"
+    _css = ":root{--black:#080808;--surface:#111;--surface2:#181818;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.14);--text:#fff;--muted:rgba(255,255,255,.45);--muted2:rgba(255,255,255,.25);--blue:#3b82f6;--indigo:#6366f1;--green:#22c55e;--red:#f43f5e;--amber:#f59e0b;--grad:linear-gradient(135deg,#3b82f6,#6366f1);--font:'Montserrat',sans-serif;--sb:228px;}*{box-sizing:border-box;margin:0;padding:0}body{font-family:var(--font);background:var(--black);color:var(--text);display:flex;min-height:100vh;-webkit-font-smoothing:antialiased}body::before{content:'';position:fixed;inset:0;background-image:url('data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E');opacity:.025;pointer-events:none;z-index:0}body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}.sidebar{width:var(--sb);min-height:100vh;background:#060606;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}.sb-logo{padding:20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}.sb-mark{width:36px;height:36px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(99,102,241,.4)}.sb-name{font-weight:900;font-size:16px;letter-spacing:-.03em}.sb-sub{font-size:10px;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.05em}.live-pill{margin:10px 14px;display:flex;align-items:center;gap:7px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:8px 12px}.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s ease-in-out infinite;flex-shrink:0}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}.live-pill span{font-size:11px;font-weight:700;color:#4ade80}.nav-section{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted2);padding:12px 16px 4px}.nav-wrap{flex:1;padding:6px 10px;display:flex;flex-direction:column}.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--muted);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-align:left;width:100%;margin-bottom:2px}.nav-item:hover{background:rgba(255,255,255,.05);color:var(--text)}.nav-item.active{background:rgba(99,102,241,.15);color:#fff;border:1px solid rgba(99,102,241,.25)}.nav-item.active i{color:var(--indigo)}.nav-item i{width:16px;text-align:center;font-size:12px;color:var(--muted2)}.sb-foot{padding:14px;border-top:1px solid var(--border)}.u-chip{background:rgba(255,255,255,.04);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:10px;border:1px solid var(--border)}.u-av{width:30px;height:30px;border-radius:8px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0}.u-name{font-size:12px;font-weight:700}.u-role{font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:.04em}.logout-link{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;color:var(--muted);text-decoration:none;padding:8px;border:1px solid var(--border);border-radius:8px;transition:all .2s;font-weight:600}.logout-link:hover{color:var(--text);border-color:var(--border2)}.main{margin-left:var(--sb);flex:1;min-height:100vh;position:relative;z-index:1}.main-content{padding:36px 36px 56px}.page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}.page-title{font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1.2}.page-sub{font-size:12px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:28px}.metric-card{background:var(--surface);border-radius:16px;padding:22px 20px;border:1px solid var(--border);transition:border-color .2s,transform .2s;position:relative;overflow:hidden}.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;opacity:0;transition:opacity .3s;background:linear-gradient(90deg,transparent,rgba(99,102,241,.5),transparent)}.metric-card:hover{border-color:var(--border2);transform:translateY(-2px)}.metric-card:hover::before{opacity:1}.m-icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:16px}.m-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:7px}.m-val{font-size:34px;font-weight:900;letter-spacing:-.04em;line-height:1;margin-bottom:4px}.m-sub{font-size:11px;color:var(--muted);font-weight:500}.card{background:var(--surface);border-radius:16px;padding:24px;border:1px solid var(--border);margin-bottom:14px}.card-title{font-size:14px;font-weight:700;margin-bottom:16px}.action-card{background:var(--surface);border-radius:14px;padding:22px 24px;border:1px solid var(--border);margin-bottom:12px;border-left:3px solid var(--indigo)}.action-card h3{font-size:15px;font-weight:800;margin-bottom:6px}.action-card p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px}.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .15s;text-decoration:none}.btn-primary{background:var(--text);color:var(--black)}.btn-primary:hover{opacity:.88}.btn-grad{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.3)}.btn-grad:hover{opacity:.9;transform:translateY(-1px)}.btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border2)}.btn-ghost:hover{background:rgba(255,255,255,.1)}.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}.b-sent{background:rgba(99,102,241,.15);color:#818cf8}.b-replied{background:rgba(34,197,94,.15);color:#4ade80}.b-unsubscribed{background:rgba(244,63,94,.12);color:#fb7185}.b-hot{background:rgba(244,63,94,.12);color:#f87171}.b-warm{background:rgba(245,158,11,.12);color:#fbbf24}.b-cold{background:rgba(99,102,241,.12);color:#818cf8}.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}table{width:100%;border-collapse:collapse;font-size:13px}thead th{padding:10px 16px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}tbody td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle}tbody tr:last-child td{border-bottom:none}tbody tr:hover td{background:rgba(255,255,255,.015)}.empty-state{text-align:center;padding:48px;color:var(--muted);font-size:13px;line-height:1.8}"
+    return (
+        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"/><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>"
+        "<title>Lumera Client Portal</title>"
+        "<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css\"/>"
+        "<link href=\"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap\" rel=\"stylesheet\"/>"
+        "<style>" + _css + "</style></head><body>"
+        "<div class=\"sidebar\"><div class=\"sb-logo\"><div class=\"sb-mark\"><i class=\"fa-solid fa-bolt\" style=\"color:#fff;font-size:15px\"></i></div>"
+        "<div><div class=\"sb-name\">Lumera</div><div class=\"sb-sub\">Client Portal</div></div></div>"
+        "<div class=\"live-pill\"><div class=\"live-dot\"></div><span>System Live</span></div>"
+        "<div class=\"nav-section\">Menu</div><div class=\"nav-wrap\">" + _nav + "</div>"
+        "<div class=\"sb-foot\"><div class=\"u-chip\"><div class=\"u-av\">" + _u + "</div>"
+        "<div><div class=\"u-name\">" + user + "</div><div class=\"u-role\">Client</div></div></div>"
+        "<a href=\"/logout\" class=\"logout-link\"><i class=\"fa-solid fa-arrow-right-from-bracket\"></i> Sign out</a></div></div>"
+        "<div class=\"main\"><div class=\"main-content\">" + content + "</div></div></body></html>"
+    )
 
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Lumera · {active.replace("-"," ").title()}</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-<style>
-:root {{
-  --black:#080808;--surface:#111111;--surface2:#181818;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
-  --text:#ffffff;--muted:rgba(255,255,255,0.45);--muted2:rgba(255,255,255,0.25);
-  --blue:#3b82f6;--indigo:#6366f1;--green:#22c55e;--red:#f43f5e;--amber:#f59e0b;
-  --grad:linear-gradient(135deg,#3b82f6,#6366f1);--font:'Montserrat',sans-serif;--sidebar:220px;
-}}
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:var(--font);background:var(--black);color:var(--text);display:flex;min-height:100vh}}
-.sidebar{{width:var(--sidebar);min-height:100vh;background:#0a0a0a;border-right:1px solid var(--border);
-  display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}}
-.sb-logo{{padding:24px 20px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}}
-.sb-logo-mark{{width:32px;height:32px;border-radius:8px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}}
-.sb-logo-text{{font-weight:800;font-size:15px;letter-spacing:-.02em}}
-.sb-logo-sub{{font-size:10px;color:var(--muted);font-weight:600;margin-top:1px}}
-.nav-wrap{{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:2px}}
-.nav-item{{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:none;
-  background:transparent;color:var(--muted);font-family:var(--font);font-size:13px;font-weight:600;
-  cursor:pointer;transition:all .15s;text-align:left;width:100%}}
-.nav-item:hover{{background:rgba(255,255,255,0.05);color:var(--text)}}
-.nav-item.active{{background:rgba(99,102,241,0.15);color:var(--indigo)}}
-.nav-item i{{width:16px;text-align:center;font-size:13px}}
-.sb-footer{{padding:16px;border-top:1px solid var(--border)}}
-.user-chip{{background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:10px}}
-.u-avatar{{width:28px;height:28px;border-radius:7px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex-shrink:0}}
-.u-name{{font-size:12px;font-weight:700;color:var(--text)}}
-.u-role{{font-size:10px;color:var(--muted2)}}
-.logout-link{{display:block;text-align:center;font-size:11px;color:var(--muted);text-decoration:none;padding:6px;border:1px solid var(--border);border-radius:8px}}
-.logout-link:hover{{color:var(--text)}}
-.main{{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}}
-.main-content{{flex:1;padding:32px 32px 48px}}
-.page-hdr{{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}}
-.page-title{{font-size:22px;font-weight:800;letter-spacing:-.03em}}
-.page-sub{{font-size:12px;color:var(--muted);margin-top:4px;font-weight:500}}
-.metrics-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px}}
-.metric-card{{background:var(--surface);border-radius:16px;padding:20px;border:1px solid var(--border)}}
-.card{{background:var(--surface);border-radius:18px;padding:24px;border:1px solid var(--border);margin-bottom:16px}}
-.card-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}}
-.card-title{{font-size:14px;font-weight:700}}
-.action-card{{background:var(--surface);border-radius:18px;padding:28px;border:1px solid var(--border);
-  margin-bottom:16px;border-left:3px solid var(--indigo);}}
-.action-card h3{{font-size:16px;font-weight:800;margin-bottom:6px}}
-.action-card p{{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px}}
-.btn{{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-family:var(--font);
-  font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .15s}}
-.btn-primary{{background:var(--grad);color:#fff}}
-.btn-ghost{{background:rgba(255,255,255,0.06);color:var(--text);border:1px solid var(--border)}}
-.btn-primary:hover{{opacity:.9}}
-.btn-ghost:hover{{background:rgba(255,255,255,0.1)}}
-.badge{{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}}
-.b-sent{{background:rgba(99,102,241,.15);color:#818cf8}}
-.b-replied{{background:rgba(34,197,94,.15);color:#4ade80}}
-.b-unsubscribed{{background:rgba(244,63,94,.12);color:#fb7185}}
-.tbl-wrap{{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}}
-table{{width:100%;border-collapse:collapse;font-size:13px}}
-thead th{{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;color:var(--muted);background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}}
-tbody td{{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle}}
-tbody tr:last-child td{{border-bottom:none}}
-.empty-state{{text-align:center;padding:40px;color:var(--muted);font-size:13px}}
-</style>
-</head>
-<body>
-<div class="sidebar">
-  <div class="sb-logo">
-    <div class="sb-logo-mark">L</div>
-    <div><div class="sb-logo-text">Lumera</div><div class="sb-logo-sub">Client Portal</div></div>
-  </div>
-  <div class="nav-wrap">{nav_html}</div>
-  <div class="sb-footer">
-    <div class="user-chip">
-      <div class="u-avatar">{user[0].upper() if user else "?"}</div>
-      <div><div class="u-name">{user}</div><div class="u-role">client</div></div>
-    </div>
-    <a href="/logout" class="logout-link">Sign out</a>
-  </div>
-</div>
-<div class="main"><div class="main-content">{content}</div></div>
-</body></html>"""
-
-
-# ─────────────────────────────────────────────
-# DATABASE
-# ─────────────────────────────────────────────
 def init_db():
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""CREATE TABLE IF NOT EXISTS outreach (
@@ -1725,13 +1641,15 @@ def client_home(request: Request):
     client_niche = client_info[0].get("niche","") if client_info else ""
     client_biz   = client_info[0].get("business","") if client_info else ""
 
-    def mcard(icon, label, value, sub="", grad="linear-gradient(135deg,#3b82f6,#6366f1)"):
-        return f'''<div class="metric-card">
-          <div class="m-icon" style="background:{grad}22;border:1px solid {grad.split(",")[1].strip().rstrip(")")+"33" if "," in grad else "#6366f133"}">{icon}</div>
-          <div class="m-label">{label}</div>
-          <div class="m-val" style="background:{grad};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">{value}</div>
-          <div class="m-delta">{sub}</div>
-        </div>'''
+    def mcard(icon, label, value, sub="", color="#818cf8", bg="rgba(99,102,241,.12)"):
+        return (
+            f'<div class="metric-card">'
+            f'<div class="m-icon" style="background:{bg};color:{color}">{icon}</div>'
+            f'<div class="m-label">{label}</div>'
+            f'<div class="m-val" style="color:{color}">{value}</div>'
+            f'<div class="m-sub">{sub}</div>'
+            '</div>'
+        )
 
     content_html = f'''
     <div class="page-hdr">
