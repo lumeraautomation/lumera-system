@@ -1061,6 +1061,9 @@ input:focus{{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(99,102,241,.12
 def login_post(request: Request, username: str = Form(...), password: str = Form(...)):
     from datetime import timedelta
     print(f"LOGIN ATTEMPT: username={repr(username)} password={repr(password)}")
+    print(f"DB_PATH: {DB_PATH}")
+    _debug = db_query("SELECT username, password FROM clients WHERE username=?", (username,))
+    print(f"DB QUERY RESULT: {_debug}")
     expires = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
     if username == ADMIN_USER and password == ADMIN_PASS:
         token = secrets.token_hex(32)
