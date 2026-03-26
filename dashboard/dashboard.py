@@ -2711,7 +2711,7 @@ async def engine_scrape(request: Request):
 
     try:
         payload = _json.dumps({
-            "model": "sonar",
+            "model": "sonar-pro",
             "max_tokens": 8000,
             "messages": [{"role": "user", "content": prompt}]
         }).encode()
