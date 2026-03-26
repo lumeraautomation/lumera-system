@@ -3127,3 +3127,8 @@ def setup_trial_client():
          "Trial - NJ restaurants, books via veturn.ai/contact",
          datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     return {"status": "client created"}
+
+@app.get("/check-client")
+def check_client():
+    rows = db_query("SELECT username, password, status FROM clients")
+    return {"clients": rows}
