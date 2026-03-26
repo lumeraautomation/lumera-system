@@ -455,7 +455,7 @@ NAV_SECTIONS = [
     ]),
 ]
 
-def shell(content: str, active: str = "overview", user: str = "admin") -> str:
+def shell(content: str, active: str = "overview", user: str = "admin", role: str = "administrator") -> str:
     nav_html = ""
     for section_label, items in NAV_SECTIONS:
         nav_html += f'<div class="nav-section-lbl">{section_label}</div>'
@@ -783,7 +783,7 @@ a:hover{{text-decoration:underline;}}
       <div class="u-avatar">K</div>
       <div>
         <div class="u-name">{user.capitalize()}</div>
-        <div class="u-role">administrator</div>
+        <div class="u-role">{role}</div>
       </div>
     </div>
     <a href="/logout" class="logout-link">LOG OUT</a>
@@ -1218,7 +1218,10 @@ def logout(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
-    return RedirectResponse("/overview" if get_current_user(request) else "/login")
+    user = get_current_user(request)
+    if not user: return RedirectResponse("/login")
+    if is_client(user): return RedirectResponse("/client-home")
+    return RedirectResponse("/overview")
 
 
 # ─────────────────────────────────────────────
