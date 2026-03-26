@@ -12,7 +12,6 @@ import sqlite3
 import secrets
 import json
 import re
-import random
 import os
 import pytz
 
@@ -24,7 +23,7 @@ FROM_EMAIL           = os.getenv("FROM_EMAIL", "kory@lumeraautomation.com")
 SERVICE_ACCOUNT_JSON = os.getenv("SERVICE_ACCOUNT_JSON")
 CALENDAR_ID          = os.getenv("CALENDAR_ID")
 MEET_LINK            = os.getenv("MEET_LINK", "https://meet.google.com/new")
-DB_PATH              = Path(os.getenv("DB_PATH", "/data/outreach.db"))
+DB_PATH              = Path(__file__).parent.parent / "outreach.db"
 DAILY_LEADS_DIR      = Path(__file__).parent.parent / "daily_leads"
 DAILY_LEADS_DIR.mkdir(exist_ok=True)  # Create if not exists (important on Render)
 SCRIPTS_DIR          = Path(__file__).parent.parent / "scripts"
@@ -46,33 +45,9 @@ def get_current_user(request: Request):
     rows = db_query("SELECT username FROM sessions WHERE token=? AND expires_at > datetime('now')", (token,))
     return rows[0]["username"] if rows else None
 
-def is_client(username: str) -> bool:
-    if not username: return False
-    if username == ADMIN_USER: return False
-    rows = db_query("SELECT id FROM clients WHERE username=?", (username,))
-    return len(rows) > 0
-
-def shell_client(content: str, active: str = "client-home", user: str = "") -> str:
-    _nav_items = [("client-home","fa-house","Home"),("client-leads","fa-crosshairs","My Leads"),("client-emails","fa-paper-plane","My Emails"),("book","fa-rocket","Get Started")]
-    _nav = "".join("<button class=\"nav-item " + ("active" if k==active else "") + "\" onclick=\"window.location='/" + k + "'\"><i class=\"fa-solid " + ic + "\"></i>" + lb + "</button>" for k,ic,lb in _nav_items)
-    _u = user[0].upper() if user else "?"
-    _css = ":root{--black:#080808;--surface:#111;--surface2:#181818;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.14);--text:#fff;--muted:rgba(255,255,255,.45);--muted2:rgba(255,255,255,.25);--blue:#3b82f6;--indigo:#6366f1;--green:#22c55e;--red:#f43f5e;--amber:#f59e0b;--grad:linear-gradient(135deg,#3b82f6,#6366f1);--font:'Montserrat',sans-serif;--sb:228px;}*{box-sizing:border-box;margin:0;padding:0}body{font-family:var(--font);background:var(--black);color:var(--text);display:flex;min-height:100vh;-webkit-font-smoothing:antialiased}body::before{content:'';position:fixed;inset:0;background-image:url('data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E');opacity:.025;pointer-events:none;z-index:0}body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}.sidebar{width:var(--sb);min-height:100vh;background:#060606;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}.sb-logo{padding:20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}.sb-mark{width:36px;height:36px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(99,102,241,.4)}.sb-name{font-weight:900;font-size:16px;letter-spacing:-.03em}.sb-sub{font-size:10px;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.05em}.live-pill{margin:10px 14px;display:flex;align-items:center;gap:7px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:8px;padding:8px 12px}.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s ease-in-out infinite;flex-shrink:0}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}.live-pill span{font-size:11px;font-weight:700;color:#4ade80}.nav-section{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted2);padding:12px 16px 4px}.nav-wrap{flex:1;padding:6px 10px;display:flex;flex-direction:column}.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--muted);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-align:left;width:100%;margin-bottom:2px}.nav-item:hover{background:rgba(255,255,255,.05);color:var(--text)}.nav-item.active{background:rgba(99,102,241,.15);color:#fff;border:1px solid rgba(99,102,241,.25)}.nav-item.active i{color:var(--indigo)}.nav-item i{width:16px;text-align:center;font-size:12px;color:var(--muted2)}.sb-foot{padding:14px;border-top:1px solid var(--border)}.u-chip{background:rgba(255,255,255,.04);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:10px;border:1px solid var(--border)}.u-av{width:30px;height:30px;border-radius:8px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0}.u-name{font-size:12px;font-weight:700}.u-role{font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:.04em}.logout-link{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;color:var(--muted);text-decoration:none;padding:8px;border:1px solid var(--border);border-radius:8px;transition:all .2s;font-weight:600}.logout-link:hover{color:var(--text);border-color:var(--border2)}.main{margin-left:var(--sb);flex:1;min-height:100vh;position:relative;z-index:1}.main-content{padding:36px 36px 56px}.page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}.page-title{font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1.2}.page-sub{font-size:12px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:28px}.metric-card{background:var(--surface);border-radius:16px;padding:22px 20px;border:1px solid var(--border);transition:border-color .2s,transform .2s;position:relative;overflow:hidden}.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;opacity:0;transition:opacity .3s;background:linear-gradient(90deg,transparent,rgba(99,102,241,.5),transparent)}.metric-card:hover{border-color:var(--border2);transform:translateY(-2px)}.metric-card:hover::before{opacity:1}.m-icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:16px}.m-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:7px}.m-val{font-size:34px;font-weight:900;letter-spacing:-.04em;line-height:1;margin-bottom:4px}.m-sub{font-size:11px;color:var(--muted);font-weight:500}.card{background:var(--surface);border-radius:16px;padding:24px;border:1px solid var(--border);margin-bottom:14px}.card-title{font-size:14px;font-weight:700;margin-bottom:16px}.action-card{background:var(--surface);border-radius:14px;padding:22px 24px;border:1px solid var(--border);margin-bottom:12px;border-left:3px solid var(--indigo)}.action-card h3{font-size:15px;font-weight:800;margin-bottom:6px}.action-card p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px}.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .15s;text-decoration:none}.btn-primary{background:var(--text);color:var(--black)}.btn-primary:hover{opacity:.88}.btn-grad{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.3)}.btn-grad:hover{opacity:.9;transform:translateY(-1px)}.btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border2)}.btn-ghost:hover{background:rgba(255,255,255,.1)}.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}.b-sent{background:rgba(99,102,241,.15);color:#818cf8}.b-replied{background:rgba(34,197,94,.15);color:#4ade80}.b-unsubscribed{background:rgba(244,63,94,.12);color:#fb7185}.b-hot{background:rgba(244,63,94,.12);color:#f87171}.b-warm{background:rgba(245,158,11,.12);color:#fbbf24}.b-cold{background:rgba(99,102,241,.12);color:#818cf8}.tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}table{width:100%;border-collapse:collapse;font-size:13px}thead th{padding:10px 16px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}tbody td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle}tbody tr:last-child td{border-bottom:none}tbody tr:hover td{background:rgba(255,255,255,.015)}.empty-state{text-align:center;padding:48px;color:var(--muted);font-size:13px;line-height:1.8}"
-    return (
-        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"/><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>"
-        "<title>Lumera Client Portal</title>"
-        "<link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css\"/>"
-        "<link href=\"https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap\" rel=\"stylesheet\"/>"
-        "<style>" + _css + "</style></head><body>"
-        "<div class=\"sidebar\"><div class=\"sb-logo\"><div class=\"sb-mark\"><i class=\"fa-solid fa-bolt\" style=\"color:#fff;font-size:15px\"></i></div>"
-        "<div><div class=\"sb-name\">Lumera</div><div class=\"sb-sub\">Client Portal</div></div></div>"
-        "<div class=\"live-pill\"><div class=\"live-dot\"></div><span>System Live</span></div>"
-        "<div class=\"nav-section\">Menu</div><div class=\"nav-wrap\">" + _nav + "</div>"
-        "<div class=\"sb-foot\"><div class=\"u-chip\"><div class=\"u-av\">" + _u + "</div>"
-        "<div><div class=\"u-name\">" + user + "</div><div class=\"u-role\">Client</div></div></div>"
-        "<a href=\"/logout\" class=\"logout-link\"><i class=\"fa-solid fa-arrow-right-from-bracket\"></i> Sign out</a></div></div>"
-        "<div class=\"main\"><div class=\"main-content\">" + content + "</div></div></body></html>"
-    )
-
+# ─────────────────────────────────────────────
+# DATABASE
+# ─────────────────────────────────────────────
 def init_db():
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""CREATE TABLE IF NOT EXISTS outreach (
@@ -109,11 +84,8 @@ def init_db():
         try:
             conn.execute("ALTER TABLE bookings ADD COLUMN meet_link TEXT")
         except: pass
-
-        try:
-            conn.execute("INSERT OR IGNORE INTO clients (username, password, niche, email, business, status, start_date, notes, created_at) VALUES (?,?,?,?,?,?,?,?,?)", ("veturnai","trial2026","restaurant","","Veturn AI","active","2026-03-25","Trial - NJ restaurants","2026-03-25 00:00:00"))
-        except: pass
         conn.commit()
+
 init_db()
 
 def db_query(sql, params=()):
@@ -371,7 +343,7 @@ NAV_SECTIONS = [
     ]),
 ]
 
-def shell(content: str, active: str = "overview", user: str = "admin", role: str = "administrator") -> str:
+def shell(content: str, active: str = "overview", user: str = "admin") -> str:
     nav_html = ""
     for section_label, items in NAV_SECTIONS:
         nav_html += f'<div class="nav-section-lbl">{section_label}</div>'
@@ -699,7 +671,7 @@ a:hover{{text-decoration:underline;}}
       <div class="u-avatar">K</div>
       <div>
         <div class="u-name">{user.capitalize()}</div>
-        <div class="u-role">{role}</div>
+        <div class="u-role">administrator</div>
       </div>
     </div>
     <a href="/logout" class="logout-link">LOG OUT</a>
@@ -816,35 +788,17 @@ function toast(msg,type=''){{
 function filterLeads(){{
   const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
   const h=document.getElementById('heatFilter')?.value||'all';
-  const n=(document.getElementById('nicheFilter')?.value||'all');
-  document.querySelectorAll('.lead-card').forEach(el=>{{
+  // Support both card and table row layouts
+  document.querySelectorAll('[data-heat]').forEach(el=>{{
     const mQ=!q||el.textContent.toLowerCase().includes(q);
     const mH=h==='all'||el.dataset.heat===h;
     el.style.display=(mQ&&mH)?'':'none';
   }});
-  // Show/hide niche sections based on filter and whether any cards visible
-  document.querySelectorAll('.niche-section').forEach(sec=>{{
-    const secNiche=sec.dataset.niche;
-    const nicheMatch=n==='all'||secNiche===n;
-    const visibleCards=sec.querySelectorAll('.lead-card:not([style*="display: none"]):not([style*="display:none"])');
-    sec.style.display=(nicheMatch&&visibleCards.length>0)?'':'none';
-  }});
 }}
 function setHeat(val){{
   document.getElementById('heatFilter').value=val;
-  document.querySelectorAll('.heat-btn[data-heat]').forEach(b=>b.classList.toggle('active',b.dataset.heat===val));
+  document.querySelectorAll('.heat-btn').forEach(b=>b.classList.toggle('active',b.dataset.heat===val));
   filterLeads();
-}}
-function setView(val){{
-  document.getElementById('view-card').classList.toggle('active',val==='card');
-  document.getElementById('view-list').classList.toggle('active',val==='list');
-  document.querySelectorAll('.leads-grid').forEach(g=>{{
-    if(val==='list'){{
-      g.style.gridTemplateColumns='1fr';
-    }} else {{
-      g.style.gridTemplateColumns='repeat(auto-fill,minmax(380px,1fr))';
-    }}
-  }});
 }}
 function toggleRow(idx,lead){{
   const card=document.getElementById('card-'+idx)||document.getElementById('row-'+idx);
@@ -1034,7 +988,7 @@ async function sendAllPending(){{
     if(status)status.textContent='Failed';
   }}finally{{
     btn.disabled=false;
-    btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Send Outreach to All';
+    btn.innerHTML='<i class="fa-solid fa-paper-plane"></i> Send All Pending';
   }}
 }}
 async function runFollowups(){{
@@ -1118,7 +1072,7 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         token = secrets.token_hex(32)
         db_run("INSERT OR REPLACE INTO sessions(token,username,expires_at) VALUES(?,?,?)",
                (token, username, expires))
-        resp = RedirectResponse("/client-home", status_code=303)
+        resp = RedirectResponse("/leads", status_code=303)
         resp.set_cookie("lumera_token", token, httponly=True, max_age=86400*7)
         return resp
     return RedirectResponse("/login?error=Invalid+credentials", status_code=303)
@@ -1134,10 +1088,7 @@ def logout(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
-    user = get_current_user(request)
-    if not user: return RedirectResponse("/login")
-    if is_client(user): return RedirectResponse("/client-home")
-    return RedirectResponse("/overview")
+    return RedirectResponse("/overview" if get_current_user(request) else "/login")
 
 
 # ─────────────────────────────────────────────
@@ -1463,14 +1414,14 @@ def leads_page(request: Request):
             lead_data = {"Name":name,"City":city,"Website":website,"Problem":problem,
                 "Email":email,"Phone":phone,"Owner":owner,"Score":si,"_niche":row.get("_niche","")}
             lead_b64  = _b64.b64encode(json.dumps(lead_data).encode()).decode()
-            lead_json = json.dumps(lead_data).replace('"', '&quot;')
+            lead_json = json.dumps(lead_data).replace('"''&quot;')
 
             tags_html  = signal_tags(row, si)
             gauge_html = score_gauge(si)
             label, color, _ = need_label(si)
 
             web_link = f'<a href="{website}" target="_blank" style="color:var(--blue);font-size:12px">{website[:30]}...</a>' if has_web else '<span style="color:var(--muted);font-size:12px">No website</span>'
-            email_el = f'<a href="mailto:{email}" style="color:var(--blue);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;max-width:100%">{email}</a>' if has_email else '<span style="color:var(--muted);font-size:12px">—</span>'
+            email_el = f'<a href="mailto:{email}" style="color:var(--blue);font-size:12px">{email}</a>' if has_email else '<span style="color:var(--muted);font-size:12px">—</span>'
 
             send_btn = (
                 f'<button class="btn btn-primary btn-sm" id="gen-{idx}" onclick="genEmailB64({idx},\'{lead_b64}\')" style="width:100%"><i class="fa-solid fa-envelope"></i> Send Email</button>'
@@ -1495,7 +1446,7 @@ def leads_page(request: Request):
                 <div style="flex-shrink:0">{gauge_html}</div>
               </div>
               <!-- INFO GRID -->
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border);min-width:0;overflow:hidden">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;padding:12px;background:rgba(255,255,255,.03);border-radius:10px;border:1px solid var(--border)">
                 <div>
                   <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:3px">Phone</div>
                   <div style="font-size:12px;color:var(--text);font-weight:600">{phone}</div>
@@ -1504,9 +1455,9 @@ def leads_page(request: Request):
                   <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:3px">Website</div>
                   <div>{web_link}</div>
                 </div>
-                <div style="min-width:0;overflow:hidden">
+                <div>
                   <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:3px">Email</div>
-                  <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{email_el}</div>
+                  <div>{email_el}</div>
                 </div>
               </div>
               <!-- PROBLEM -->
@@ -1521,7 +1472,7 @@ def leads_page(request: Request):
             </div>'''
 
         niches_html += f'''
-        <div class="niche-section" data-niche="{niche}" style="margin-bottom:32px">
+        <div style="margin-bottom:32px">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px">
             <i class="fa-solid fa-layer-group" style="color:var(--indigo)"></i>{niche}
             <span style="color:var(--muted2)">{len(rows)} leads</span>
@@ -1529,8 +1480,6 @@ def leads_page(request: Request):
           <div class="leads-grid">{cards_html}</div>
         </div>'''
 
-
-    niche_options = "".join(f'<option value="{n}">{n} ({len(niche_map[n])})</option>' for n in sorted(niche_map.keys()))
     content = f"""
     <style>
     .leads-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;}}
@@ -1544,7 +1493,7 @@ def leads_page(request: Request):
       <div class="page-sub">{total} leads &nbsp;·&nbsp; {hot} high need &nbsp;·&nbsp; {warm} medium need</div></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-ghost" id="send-pending-btn" onclick="sendAllPending()">
-          <i class="fa-solid fa-paper-plane"></i> Send Outreach to All
+          <i class="fa-solid fa-paper-plane"></i> Send All Pending
         </button>
         <div id="pending-status" style="font-size:11px;color:var(--muted);align-self:center;font-family:monospace"></div>
       </div>
@@ -1554,19 +1503,11 @@ def leads_page(request: Request):
         <i class="fa-solid fa-magnifying-glass"></i>
         <input class="search-input" id="searchBox" placeholder="Search leads..." oninput="filterLeads()"/>
       </div>
-      <select class="filter-select" id="nicheFilter" onchange="filterLeads()" style="min-width:140px">
-        <option value="all">All Niches</option>
-        {niche_options}
-      </select>
       <input type="hidden" id="heatFilter" value="all"/>
       <button class="heat-btn active" data-heat="all" onclick="setHeat('all')">All</button>
-      <button class="heat-btn" data-heat="hot" onclick="setHeat('hot')"><i class="fa-solid fa-fire"></i> Hot</button>
-      <button class="heat-btn" data-heat="warm" onclick="setHeat('warm')">Warm</button>
-      <button class="heat-btn" data-heat="cold" onclick="setHeat('cold')">Cold</button>
-      <div style="margin-left:auto;display:flex;gap:6px">
-        <button class="heat-btn active" id="view-card" onclick="setView('card')" title="Card View"><i class="fa-solid fa-grip"></i></button>
-        <button class="heat-btn" id="view-list" onclick="setView('list')" title="List View"><i class="fa-solid fa-list"></i></button>
-      </div>
+      <button class="heat-btn" data-heat="hot" onclick="setHeat('hot')"><i class="fa-solid fa-fire"></i> High Need</button>
+      <button class="heat-btn" data-heat="warm" onclick="setHeat('warm')">Medium Need</button>
+      <button class="heat-btn" data-heat="cold" onclick="setHeat('cold')">Low Need</button>
     </div>
     <div class="bulk-bar" id="bulkBar">
       <span id="selCount">0 selected</span>
@@ -1578,254 +1519,6 @@ def leads_page(request: Request):
     {niches_html or '<div class="empty-state">No leads. Run your scraper first.</div>'}"""
     return HTMLResponse(shell(content, "leads", user))
 
-
-
-# ─────────────────────────────────────────────
-# CLIENT PORTAL PAGES
-# ─────────────────────────────────────────────
-
-@app.get("/client-home", response_class=HTMLResponse)
-def client_home(request: Request):
-    user = get_current_user(request)
-    if not user: return RedirectResponse("/login")
-    if not is_client(user): return RedirectResponse("/overview")
-
-    outreach = get_all_outreach()
-    bookings = get_all_bookings()
-
-    total_sent    = len(outreach)
-    replied       = sum(1 for r in outreach if r.get("replied"))
-    pending       = sum(1 for r in outreach if not r.get("replied") and not r.get("unsubscribed") and r.get("step",1) < 3)
-    upcoming_book = [b for b in bookings if b["start_time"] >= datetime.now().isoformat() and b["status"] == "confirmed"]
-
-    # Build action items
-    actions_html = ""
-
-    if upcoming_book:
-        b = upcoming_book[0]
-        try: dts = datetime.fromisoformat(b["start_time"]).strftime("%A %b %d at %I:%M %p")
-        except: dts = b["start_time"][:16]
-        meet = b.get("meet_link","")
-        meet_btn = f'<a href="{meet}" target="_blank" class="btn btn-primary"><i class="fa-solid fa-video"></i> Join Call</a>' if meet else ""
-        actions_html += f'''
-        <div class="action-card" style="border-left-color:#22c55e">
-          <h3><i class="fa-solid fa-calendar-check" style="color:#22c55e;margin-right:8px"></i>You have a call coming up</h3>
-          <p>Your strategy call is scheduled for <strong>{dts} CT</strong>. Make sure you're ready 5 minutes early.</p>
-          {meet_btn}
-        </div>'''
-
-    if replied:
-        actions_html += f'''
-        <div class="action-card" style="border-left-color:#3b82f6">
-          <h3><i class="fa-solid fa-reply" style="color:#3b82f6;margin-right:8px"></i>{replied} lead{"s" if replied>1 else ""} replied to your emails</h3>
-          <p>Someone responded to your outreach. Check your email inbox or view the details below.</p>
-          <a href="/client-emails" class="btn btn-primary"><i class="fa-solid fa-envelope"></i> View Replies</a>
-        </div>'''
-
-    if pending > 0:
-        actions_html += f'''
-        <div class="action-card">
-          <h3><i class="fa-solid fa-paper-plane" style="color:var(--indigo);margin-right:8px"></i>{pending} follow-up emails going out soon</h3>
-          <p>Your automated follow-up sequence is running. These emails will be sent automatically — no action needed.</p>
-        </div>'''
-
-    if not actions_html:
-        actions_html = '''
-        <div class="action-card" style="border-left-color:var(--muted)">
-          <h3><i class="fa-solid fa-circle-check" style="color:var(--muted);margin-right:8px"></i>Everything is running smoothly</h3>
-          <p>Your outreach is active. New leads are added weekly and emails go out automatically. Check back soon for updates.</p>
-        </div>'''
-
-    # Get client info for niche display
-    client_info = db_query("SELECT * FROM clients WHERE username=?", (user,))
-    client_niche = client_info[0].get("niche","") if client_info else ""
-    client_biz   = client_info[0].get("business","") if client_info else ""
-
-    def mcard(icon, label, value, sub="", color="#818cf8", bg="rgba(99,102,241,.12)"):
-        return (
-            f'<div class="metric-card">'
-            f'<div class="m-icon" style="background:{bg};color:{color}">{icon}</div>'
-            f'<div class="m-label">{label}</div>'
-            f'<div class="m-val" style="color:{color}">{value}</div>'
-            f'<div class="m-sub">{sub}</div>'
-            '</div>'
-        )
-
-    content_html = f'''
-    <div class="page-hdr">
-      <div>
-        <div class="page-title">Welcome back, {user} 👋</div>
-        <div class="page-sub">
-          {f'<span style="color:var(--indigo);font-weight:700">{client_niche}</span> &nbsp;·&nbsp; ' if client_niche else ""}
-          {f'<span>{client_biz}</span> &nbsp;·&nbsp; ' if client_biz else ""}
-          <span style="color:var(--green);font-weight:700">● Active</span>
-        </div>
-      </div>
-      <a href="/book" class="btn btn-indigo"><i class="fa-solid fa-arrow-right"></i> Get Started</a>
-    </div>
-    <div class="metrics-grid">
-      {mcard('<i class="fa-solid fa-paper-plane" style="color:#818cf8"></i>', "Emails Sent", total_sent, "total outreach sent")}
-      {mcard('<i class="fa-solid fa-reply" style="color:#4ade80"></i>', "Replies Received", replied, "leads interested", "linear-gradient(135deg,#22c55e,#16a34a)")}
-      {mcard('<i class="fa-solid fa-rotate" style="color:#fbbf24"></i>', "Follow-ups Pending", pending, "sending automatically", "linear-gradient(135deg,#f59e0b,#f97316)")}
-      {mcard('<i class="fa-solid fa-calendar-check" style="color:#60a5fa"></i>', "Calls Booked", len(upcoming_book), "upcoming", "linear-gradient(135deg,#3b82f6,#6366f1)")}
-    </div>
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2);margin-bottom:12px">
-      <i class="fa-solid fa-bell" style="margin-right:6px;color:var(--indigo)"></i>What needs your attention
-    </div>
-    {actions_html}
-    '''
-    return HTMLResponse(shell_client(content_html, "client-home", user))
-
-
-@app.get("/client-leads", response_class=HTMLResponse)
-def client_leads(request: Request):
-    user = get_current_user(request)
-    if not user: return RedirectResponse("/login")
-    if not is_client(user): return RedirectResponse("/leads")
-
-    # Get client niche filter
-    client_rows = db_query("SELECT * FROM clients WHERE username=?", (user,))
-    client_niche = client_rows[0]["niche"] if client_rows else "*"
-
-    leads = load_all_leads()
-    if client_niche != "*":
-        leads = [l for l in leads if l.get("_niche","").lower() == client_niche.lower()]
-
-    total = len(leads)
-    hot   = sum(1 for l in leads if l["_heat"] == "hot")
-
-    rows_html = ""
-    for l in leads:
-        name    = str(l.get("Name","—"))
-        city    = str(l.get("City","—"))
-        phone   = str(l.get("Phone","")) or "—"
-        website = str(l.get("Website","—"))
-        problem = str(l.get("Problem","—"))
-        heat    = l.get("_heat","cold")
-        score   = int(l.get("Score",0) or 0)
-
-        heat_color = "#f43f5e" if heat=="hot" else "#f59e0b" if heat=="warm" else "#6366f1"
-        heat_label = "Hot" if heat=="hot" else "Warm" if heat=="warm" else "Cold"
-        has_web = website.lower() not in ["none listed","none","n/a","","nan"]
-        web_cell = f'<a href="{website}" target="_blank" style="color:var(--blue)">{website[:28]}...</a>' if has_web else '<span style="color:var(--muted)">No website</span>'
-
-        rows_html += f'''<tr>
-          <td style="font-weight:700">{name}</td>
-          <td style="color:var(--muted);font-size:12px">{city}</td>
-          <td style="font-size:12px">{phone}</td>
-          <td>{web_cell}</td>
-          <td style="font-size:11px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{problem}</td>
-          <td><span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:{heat_color}22;color:{heat_color}">{heat_label}</span></td>
-        </tr>'''
-
-    content_html = f'''
-    <div class="page-hdr">
-      <div>
-        <div class="page-title">My Leads</div>
-        <div class="page-sub">{total} leads found &nbsp;·&nbsp; {hot} hot prospects</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Your Lead Pipeline</div>
-        <span style="font-size:11px;color:var(--muted)">Updated weekly</span>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Business</th><th>City</th><th>Phone</th><th>Website</th><th>Why They Need You</th><th>Priority</th></tr></thead>
-          <tbody>{rows_html or '<tr><td colspan="6" class="empty-state">Your leads will appear here once your first batch is ready. This typically happens within 24 hours of getting started.</td></tr>'}</tbody>
-        </table>
-      </div>
-    </div>'''
-    return HTMLResponse(shell_client(content_html, "client-leads", user))
-
-
-@app.get("/client-emails", response_class=HTMLResponse)
-def client_emails(request: Request):
-    user = get_current_user(request)
-    if not user: return RedirectResponse("/login")
-    if not is_client(user): return RedirectResponse("/outreach")
-
-    outreach = get_all_outreach()
-    total    = len(outreach)
-    replied  = sum(1 for r in outreach if r.get("replied"))
-    pending  = sum(1 for r in outreach if not r.get("replied") and not r.get("unsubscribed") and r.get("step",1) < 3)
-
-    rows_html = ""
-    for r in outreach:
-        status    = r.get("status","sent")
-        replied_f = r.get("replied",0)
-        unsub     = r.get("unsubscribed",0)
-        step      = r.get("step",1)
-        email     = r.get("email","")
-        business  = r.get("business","—")
-        enrolled  = r.get("enrolled_at","")[:10]
-
-        if replied_f:
-            status_html = '<span class="badge b-replied">Replied ✓</span>'
-            next_html   = '<span style="color:#22c55e;font-size:12px">Done</span>'
-        elif unsub:
-            status_html = '<span class="badge b-unsubscribed">Unsubscribed</span>'
-            next_html   = '—'
-        else:
-            status_html = '<span class="badge b-sent">Active</span>'
-            try:
-                ns = datetime.fromisoformat(r.get("next_send_at","")) if r.get("next_send_at") else None
-                next_html = f'<span style="font-size:12px;color:var(--muted)">{ns.strftime("%b %d") if ns else "Done"}</span>'
-            except:
-                next_html = '—'
-
-        step_dots = "".join(
-            f'<div style="width:8px;height:8px;border-radius:50%;background:{"#6366f1" if i<=step else "rgba(255,255,255,0.1)"}"></div>'
-            for i in range(1,4)
-        )
-
-        rows_html += f'''<tr>
-          <td style="font-weight:700">{business}</td>
-          <td style="font-size:12px;color:var(--muted)">{email}</td>
-          <td>{status_html}</td>
-          <td><div style="display:flex;gap:4px;align-items:center">{step_dots}<span style="font-size:11px;color:var(--muted);margin-left:4px">Step {step}/3</span></div></td>
-          <td>{next_html}</td>
-          <td style="font-size:11px;color:var(--muted)">{enrolled}</td>
-        </tr>'''
-
-    content_html = f'''
-    <div class="page-hdr">
-      <div>
-        <div class="page-title">My Emails</div>
-        <div class="page-sub">Track every email sent on your behalf</div>
-      </div>
-    </div>
-    <div class="metrics-grid">
-      <div class="metric-card">
-        <div style="font-size:22px;margin-bottom:8px"><i class="fa-solid fa-paper-plane" style="color:var(--indigo)"></i></div>
-        <div style="font-size:28px;font-weight:800">{total}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:600">Total Emails Sent</div>
-      </div>
-      <div class="metric-card">
-        <div style="font-size:22px;margin-bottom:8px"><i class="fa-solid fa-reply" style="color:#22c55e"></i></div>
-        <div style="font-size:28px;font-weight:800;color:#22c55e">{replied}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:600">Replies Received</div>
-      </div>
-      <div class="metric-card">
-        <div style="font-size:22px;margin-bottom:8px"><i class="fa-solid fa-clock" style="color:#f59e0b"></i></div>
-        <div style="font-size:28px;font-weight:800;color:#f59e0b">{pending}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:600">Follow-ups Scheduled</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Email Activity</div>
-        <span style="font-size:11px;color:var(--muted)">3-step automated sequence per lead</span>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Business</th><th>Email</th><th>Status</th><th>Progress</th><th>Next Email</th><th>Started</th></tr></thead>
-          <tbody>{rows_html or '<tr><td colspan="6" class="empty-state">No emails sent yet. Your first batch goes out automatically once leads are ready.</td></tr>'}</tbody>
-        </table>
-      </div>
-    </div>'''
-    return HTMLResponse(shell_client(content_html, "client-emails", user))
 
 # ─────────────────────────────────────────────
 # OUTREACH
@@ -1965,11 +1658,77 @@ def system_page(request: Request):
 
     def status_tag(ok): return f'<span class="sys-tag {"sys-ok" if ok else "sys-warn"}">{"CONNECTED" if ok else "NOT SET"}</span>'
 
+    clients = get_clients()
+    client_opts = "".join(f'<option value="{c["username"]}">{c.get("business") or c["username"]} ({c.get("niche","—")})</option>' for c in clients)
+
     content = f"""
     <div class="page-hdr"><div>
       <div class="page-title">System</div>
-      <div class="page-sub">Scraper controls &nbsp;·&nbsp; API status &nbsp;·&nbsp; data files</div>
+      <div class="page-sub">Lead engine &nbsp;·&nbsp; API status &nbsp;·&nbsp; data files</div>
     </div></div>
+
+    <!-- LEAD ENGINE CARD -->
+    <div class="card" style="margin-bottom:20px;border-color:rgba(99,102,241,.3);background:linear-gradient(135deg,rgba(99,102,241,.06),var(--surface))">
+      <div class="card-header">
+        <div class="card-title"><i class="fa-solid fa-bolt" style="color:var(--indigo);margin-right:8px"></i>Lead Engine</div>
+        <span class="badge b-active">Powered by Perplexity</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:6px">Niche</div>
+          <select id="scrape-niche" style="width:100%;background:var(--black);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;cursor:pointer">
+            <option value="restaurant">Restaurant</option>
+            <option value="medspa">MedSpa</option>
+            <option value="roofing">Roofing</option>
+            <option value="dentist">Dentist</option>
+            <option value="chiropractor">Chiropractor</option>
+            <option value="HVAC">HVAC</option>
+            <option value="landscaping">Landscaping</option>
+            <option value="cleaning service">Cleaning Service</option>
+            <option value="plumber">Plumber</option>
+            <option value="digital marketing agency">Agency</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:6px">City / State</div>
+          <input id="scrape-city" type="text" placeholder="e.g. Hoboken NJ" value="Nashville TN"
+            style="width:100%;background:var(--black);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none"/>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:6px">Leads to pull</div>
+          <select id="scrape-count" style="width:100%;background:var(--black);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;cursor:pointer">
+            <option value="7">7 leads</option>
+            <option value="10" selected>10 leads</option>
+            <option value="15">15 leads</option>
+            <option value="20">20 leads</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:6px">Client</div>
+          <select id="scrape-client" style="width:100%;background:var(--black);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;cursor:pointer">
+            <option value="">— My own leads —</option>
+            {client_opts}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="engine-scrape-btn" onclick="engineScrape()">
+          <i class="fa-solid fa-magnifying-glass"></i> Scrape Leads
+        </button>
+        <button class="btn btn-ghost" id="engine-send-btn" onclick="engineSend()" style="display:none">
+          <i class="fa-solid fa-paper-plane"></i> Send Outreach to These Leads
+        </button>
+        <div id="engine-status" style="font-size:12px;color:var(--muted);font-family:monospace"></div>
+      </div>
+      <div id="engine-results" style="margin-top:16px;display:none">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted2);margin-bottom:10px">Scraped Leads Preview</div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Business</th><th>City</th><th>Phone</th><th>Email</th><th>Problem</th><th>Score</th></tr></thead>
+          <tbody id="engine-leads-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
     <div class="grid-2">
       <div>
         <div class="sys-row">
@@ -2816,6 +2575,237 @@ async def upload_csv(request: Request, file: "UploadFile" = None, niche: str = "
 
 
 # ─────────────────────────────────────────────
+# LEAD ENGINE API
+# ─────────────────────────────────────────────
+@app.post("/api/engine-scrape")
+async def engine_scrape(request: Request):
+    user = get_current_user(request)
+    if not user: return JSONResponse({"detail":"Not authenticated"}, status_code=401)
+
+    data    = await request.json()
+    niche   = data.get("niche","restaurant").strip()
+    city    = data.get("city","Nashville TN").strip()
+    count   = min(int(data.get("count",10)), 20)
+    client  = data.get("client","").strip()
+
+    # Build Perplexity prompt
+    prompt = (
+        f"Search for {count} local {niche} businesses in {city} that would benefit from lead generation or AI automation. "
+        f"For each find: 1) Real contact email from their website Contact/About page or Google listing "
+        f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
+        f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
+        f"8) Their biggest visible weakness or problem. "
+        f"Only include businesses with a confirmed real email. "
+        f'Return ONLY a valid JSON array: [{{"business":"Name","website":"https://...","email":"info@...","name":"FirstName","phone":"","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"specific weakness"}}]. '
+        f"Do not include businesses without a confirmed real email."
+    )
+
+    import urllib.request as _req
+    import json as _json
+
+    try:
+        payload = _json.dumps({
+            "model": "sonar",
+            "messages": [{"role": "user", "content": prompt}]
+        }).encode()
+        req = _req.Request(
+            "https://api.perplexity.ai/chat/completions",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {os.getenv('PERPLEXITY_KEY','')}",
+                "Content-Type": "application/json"
+            }
+        )
+        with _req.urlopen(req, timeout=30) as resp:
+            raw = _json.loads(resp.read())
+        text = raw["choices"][0]["message"]["content"]
+    except Exception as e:
+        return JSONResponse({"detail": f"Perplexity error: {e}"}, status_code=500)
+
+    # Parse JSON from response
+    text = text.replace("```json","").replace("```","").strip()
+    start = text.find("["); end = text.rfind("]") + 1
+    if start == -1: return JSONResponse({"detail":"No leads found in response"}, status_code=400)
+
+    try:
+        leads_raw = _json.loads(text[start:end])
+    except:
+        # Try merging multiple arrays
+        import re as _re
+        arrays = _re.findall(r'\[.*?\]', text, _re.DOTALL)
+        leads_raw = []
+        for arr in arrays:
+            try:
+                items = _json.loads(arr)
+                leads_raw.extend([i for i in items if isinstance(i, dict)])
+            except: pass
+
+    # Process leads
+    seen = set()
+    leads_out = []
+    for l in leads_raw:
+        if not isinstance(l, dict): continue
+        email = (l.get("email") or "").strip().lower()
+        if not email or "@" not in email or email in seen: continue
+        seen.add(email)
+
+        phone   = l.get("phone","") or ""
+        website = l.get("website","") or "None listed"
+        problem = l.get("problem","") or ""
+        reviews = l.get("reviews","") or ""
+        rating  = l.get("rating","") or ""
+        has_bk  = l.get("has_booking","") or ""
+        hours   = l.get("hours","") or ""
+
+        # Score
+        score = 0
+        if phone: score += 1
+        if website.lower() in ["none listed","none","n/a",""]: score += 2
+        if any(x in has_bk.lower() for x in ["no","false","none"]): score += 1
+        try:
+            if int(''.join(c for c in reviews if c.isdigit()) or 0) >= 50: score += 1
+        except: pass
+        if any(x in (hours+problem).lower() for x in ["closes","limited","no booking","phone"]): score += 1
+        score = min(score, 5)
+
+        leads_out.append({
+            "Name": l.get("business","") or l.get("name",""),
+            "City": city,
+            "Website": website,
+            "Problem": problem,
+            "Email": email,
+            "Phone": phone,
+            "Owner": l.get("name",""),
+            "Score": score,
+            "Rating": rating,
+            "Reviews": reviews,
+            "HasBooking": has_bk,
+            "Hours": hours,
+        })
+
+    # Save to CSV
+    import csv as _csv
+    niche_slug = niche.replace(" ","_")
+    client_slug = f"_{client}" if client else ""
+    filename = f"{niche_slug}_{city.replace(' ','_')}{client_slug}_{datetime.now().strftime('%Y-%m-%d_%H%M')}.csv"
+    filepath = DAILY_LEADS_DIR / filename
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
+        w = _csv.DictWriter(f, fieldnames=["Name","City","Website","Problem","Email","Phone","Owner","Score","Rating","Reviews","HasBooking","Hours"])
+        w.writeheader()
+        w.writerows(leads_out)
+
+    return JSONResponse({"ok": True, "count": len(leads_out), "file": filename, "leads": leads_out})
+
+
+@app.post("/api/engine-send")
+async def engine_send(request: Request):
+    user = get_current_user(request)
+    if not user: return JSONResponse({"detail":"Not authenticated"}, status_code=401)
+    if not RESEND_API_KEY: return JSONResponse({"detail":"RESEND_API_KEY not set"}, status_code=500)
+    if not OPENAI_API_KEY: return JSONResponse({"detail":"OPENAI_API_KEY not set"}, status_code=500)
+
+    data   = await request.json()
+    fname  = data.get("file","").strip()
+    client = data.get("client","").strip()
+
+    # Load the CSV
+    filepath = DAILY_LEADS_DIR / fname
+    if not filepath.exists():
+        return JSONResponse({"detail": f"File not found: {fname}"}, status_code=404)
+
+    try:
+        df = pd.read_csv(filepath).fillna("")
+        leads = df.to_dict(orient="records")
+    except Exception as e:
+        return JSONResponse({"detail": f"Could not read file: {e}"}, status_code=400)
+
+    # Get client booking link
+    booking_url = "https://app.lumeraautomation.com/book"
+    from_name   = "Kory"
+    if client:
+        client_rows = db_query("SELECT * FROM clients WHERE username=?", (client,))
+        if client_rows:
+            c = client_rows[0]
+            # Try to find their booking link in notes or use default
+            if c.get("notes") and "http" in str(c.get("notes","")):
+                import re as _re
+                urls = _re.findall(r'https?://\S+', c.get("notes",""))
+                if urls: booking_url = urls[0]
+            # Use their niche for email context
+            client_niche = c.get("niche","")
+            client_biz   = c.get("business","")
+
+    from openai import OpenAI
+    _oai = OpenAI(api_key=OPENAI_API_KEY)
+    import resend as _r
+    _r.api_key = RESEND_API_KEY
+
+    sent = failed = 0
+    for lead in leads:
+        email = str(lead.get("Email","")).strip()
+        if not email or "@" not in email: continue
+
+        name    = str(lead.get("Name","there"))
+        owner   = str(lead.get("Owner","")) or name.split()[0]
+        city    = str(lead.get("City",""))
+        problem = str(lead.get("Problem",""))
+        niche   = str(lead.get("City","")).lower()
+        reviews = str(lead.get("Reviews",""))
+        has_bk  = str(lead.get("HasBooking",""))
+        hours   = str(lead.get("Hours",""))
+
+        is_restaurant = "restaurant" in fname.lower() or "restaurant" in niche
+
+        if is_restaurant:
+            prompt = (
+                f"Write a short cold email pitching an AI phone receptionist to a restaurant.\n"
+                f"Restaurant: {name}, {city}\n"
+                f"Problem: {problem}\n"
+                f"Reviews: {reviews}\nHas online booking: {has_bk}\nHours: {hours}\n"
+                f"Owner name: {owner}\n\n"
+                "Pain points: missed calls during dinner rush = lost reservations. No online booking = 100% phone dependent. "
+                "High review count means busy and missing calls. Goes dark after hours.\n\n"
+                "Rules: Address owner by first name. Subject under 10 words. 3 short paragraphs. Conversational not salesy. "
+                f"Reference their specific situation. CTA: check it out at {booking_url}\n"
+                "Sign off: Kory. No 'I hope this finds you well'.\n"
+                'Return ONLY JSON: {"subject":"...","body":"..."}'
+            )
+        else:
+            prompt = (
+                f"Write a short cold outreach email for a local service business.\n"
+                f"Business: {name}, {city}\nProblem: {problem}\nOwner: {owner}\n\n"
+                "Rules: Address by first name. Subject under 10 words. 3 short paragraphs. Conversational not salesy.\n"
+                f"CTA: get started at {booking_url}\nSign off: Kory, Lumera Automation.\n"
+                'Return ONLY JSON: {"subject":"...","body":"..."}'
+            )
+
+        try:
+            res = _oai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role":"user","content":prompt}],
+                max_tokens=500, temperature=0.8
+            )
+            raw = res.choices[0].message.content.strip().replace("```json","").replace("```","").strip()
+            email_data = json.loads(raw)
+            subject = email_data.get("subject","Following up on your business")
+            body    = email_data.get("body","")
+
+            _r.Emails.send({
+                "from": f"{from_name} @ Lumera Automation <{FROM_EMAIL}>",
+                "to": email,
+                "subject": subject,
+                "html": f"<div style='font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.7'>{body.replace(chr(10),'<br>')}</div>"
+            })
+            enroll_lead(email, name, name, fname.split("_")[0], city, problem)
+            sent += 1
+        except Exception as e:
+            print(f"Send error for {email}: {e}")
+            failed += 1
+
+    return JSONResponse({"ok": True, "sent": sent, "failed": failed})
+
+
+# ─────────────────────────────────────────────
 # API ROUTES
 # ─────────────────────────────────────────────
 @app.post("/api/generate-email")
@@ -2824,7 +2814,36 @@ async def generate_email(request: Request):
         return JSONResponse({"detail":"OPENAI_API_KEY not set"},status_code=500)
     from openai import OpenAI
     lead=await request.json()
-    prompt=f"""You are an outreach specialist for Lumera Automation, which builds AI lead generation systems for local service businesses.
+    niche = lead.get('_niche','').lower()
+    is_restaurant = any(x in niche for x in ['restaurant','food','dining','cafe','bar'])
+
+    if is_restaurant:
+        prompt=f"""You are an outreach specialist helping VeturnAI sell AI phone receptionists to restaurants.
+
+Write a short cold outreach email to a restaurant owner:
+- Restaurant: {lead.get('Name','there')}
+- City: {lead.get('City','')}
+- Problem: {lead.get('Problem','')}
+- Reviews: {lead.get('Reviews','')} (high review count = high call volume = missing calls)
+- Has online booking: {lead.get('HasBooking','unknown')}
+- Hours: {lead.get('Hours','')}
+{"- Owner: "+lead.get('Owner','') if lead.get('Owner') else ""}
+
+The pitch: VeturnAI is an AI phone receptionist that answers calls 24/7, takes reservations, answers menu questions, and handles to-go orders — even during dinner rush and after close.
+
+Pain points to reference (use whichever fits their data):
+- Missed calls during dinner rush = lost reservations and revenue
+- Voicemail after 10pm = customers calling the next place that picks up
+- No online booking = 100% phone dependent, every missed call is a missed table
+- High review count means they are busy and definitely missing calls
+
+Rules: Address by first name if known. Subject under 10 words. Conversational, not salesy.
+Body: 3 short paragraphs. Make it feel like you noticed a specific problem with their restaurant.
+CTA: Check it out at veturn.ai/contact
+Sign off: Kory. No "I hope this finds you well". No corporate speak.
+Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
+    else:
+        prompt=f"""You are an outreach specialist for Lumera Automation, which builds AI lead generation systems for local service businesses.
 
 Write a short personalised cold outreach email:
 - Business: {lead.get('Name','there')}
@@ -3013,91 +3032,5 @@ Return ONLY JSON: {{"subject":"...","body":"..."}}"""
                 "html":f"<div style='font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.6'>{data['body'].replace(chr(10),'<br>')}</div>"})
             mark_followup_sent(lead["id"],new_step); sent+=1
         except Exception as e:
-            pass
-
-@app.get("/debug-schema")
-def debug_schema():
-    conn = sqlite3.connect(DB_PATH)
-    cols = [d[1] for d in conn.execute("PRAGMA table_info(leads)").fetchall()]
-    tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
-    conn.close()
-    return {"tables": tables, "leads_columns": cols}
-
-@app.get("/init-leads-table")
-def init_leads_table():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS leads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            business_name TEXT,
-            phone TEXT,
-            email TEXT,
-            website TEXT,
-            niche TEXT,
-            city TEXT,
-            state TEXT,
-            score INTEGER DEFAULT 0,
-            score_label TEXT,
-            signals TEXT,
-            problem TEXT,
-            rating TEXT,
-            review_count INTEGER,
-            has_booking INTEGER DEFAULT 0,
-            hours TEXT,
-            status TEXT DEFAULT 'new',
-            created_at TEXT DEFAULT (datetime('now'))
-        )
-    """)
-    conn.commit()
-    conn.close()
-    return {"status": "leads table created"}
-
-@app.get("/setup-trial-client")
-def setup_trial_client():
-    from datetime import datetime
-    db_run("""INSERT OR IGNORE INTO clients (username, password, niche, email, business, status, start_date, notes, created_at)
-        VALUES (?,?,?,?,?,?,?,?,?)""",
-        ("veturnai","trial2026","restaurant","","Veturn AI","active",
-         datetime.now().strftime("%Y-%m-%d"),
-         "Trial - NJ restaurants, books via veturn.ai/contact",
-         datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    return {"status": "client created"}
-
-@app.get("/check-client")
-def check_client():
-    rows = db_query("SELECT username, password, status FROM clients")
-    return {"clients": rows}
-
-@app.get("/debug-db")
-def debug_db():
-    import os
-    return {
-        "db_path": str(DB_PATH),
-        "db_exists": DB_PATH.exists(),
-        "cwd": os.getcwd()
-    }
-
-@app.get("/fix-trial-client")
-def fix_trial_client():
-    from datetime import datetime
-    db_run("DELETE FROM clients WHERE username='veturnai'")
-    db_run("""INSERT INTO clients (username, password, niche, email, business, status, start_date, notes, created_at)
-        VALUES (?,?,?,?,?,?,?,?,?)""",
-        ("veturnai","trial2026","restaurant","","Veturn AI","active",
-         datetime.now().strftime("%Y-%m-%d"),
-         "Trial - NJ restaurants",
-         datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    rows = db_query("SELECT username, password FROM clients")
-    return {"clients": rows}
-
-@app.get("/debug-login")
-def debug_login():
-    rows = db_query("SELECT username, password FROM clients WHERE username='veturnai'")
-    test = rows[0]["password"] == "trial2026" if rows else False
-    return {"found": len(rows)>0, "password_match": test, "stored": rows[0]["password"] if rows else None}
-
-@app.get("/reset-client-password")
-def reset_client_password():
-    db_run("UPDATE clients SET password=? WHERE username=?", ("trial2026", "veturnai"))
-    rows = db_query("SELECT username, password FROM clients WHERE username='veturnai'")
-    return {"updated": rows}
+            print(f"Follow-up failed: {e}"); failed+=1
+    return JSONResponse({"ok":True,"sent":sent,"failed":failed,"total_due":len(due)})
