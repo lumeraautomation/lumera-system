@@ -46,6 +46,114 @@ def get_current_user(request: Request):
     rows = db_query("SELECT username FROM sessions WHERE token=? AND expires_at > datetime('now')", (token,))
     return rows[0]["username"] if rows else None
 
+def is_client(username: str) -> bool:
+    if not username: return False
+    if username == ADMIN_USER: return False
+    rows = db_query("SELECT id FROM clients WHERE username=?", (username,))
+    return len(rows) > 0
+
+def shell_client(content: str, active: str = "client-home", user: str = "") -> str:
+    nav_items = [
+        ("client-home",  "fa-house",        "Home"),
+        ("client-leads", "fa-crosshairs",   "My Leads"),
+        ("client-emails","fa-paper-plane",  "My Emails"),
+        ("book",         "fa-calendar-plus","Book a Call"),
+    ]
+    nav_html = ""
+    for key, icon, label in nav_items:
+        cls = "active" if key == active else ""
+        nav_html += f'<button class="nav-item {cls}" onclick="window.location=\'/{key}\'"><i class="fa-solid {icon}"></i>{label}</button>'
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Lumera · {active.replace("-"," ").title()}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {{
+  --black:#080808;--surface:#111111;--surface2:#181818;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.14);
+  --text:#ffffff;--muted:rgba(255,255,255,0.45);--muted2:rgba(255,255,255,0.25);
+  --blue:#3b82f6;--indigo:#6366f1;--green:#22c55e;--red:#f43f5e;--amber:#f59e0b;
+  --grad:linear-gradient(135deg,#3b82f6,#6366f1);--font:'Montserrat',sans-serif;--sidebar:220px;
+}}
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:var(--font);background:var(--black);color:var(--text);display:flex;min-height:100vh}}
+.sidebar{{width:var(--sidebar);min-height:100vh;background:#0a0a0a;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100}}
+.sb-logo{{padding:24px 20px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}}
+.sb-logo-mark{{width:32px;height:32px;border-radius:8px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}}
+.sb-logo-text{{font-weight:800;font-size:15px;letter-spacing:-.02em}}
+.sb-logo-sub{{font-size:10px;color:var(--muted);font-weight:600;margin-top:1px}}
+.nav-wrap{{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:2px}}
+.nav-item{{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:none;
+  background:transparent;color:var(--muted);font-family:var(--font);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .15s;text-align:left;width:100%}}
+.nav-item:hover{{background:rgba(255,255,255,0.05);color:var(--text)}}
+.nav-item.active{{background:rgba(99,102,241,0.15);color:var(--indigo)}}
+.nav-item i{{width:16px;text-align:center;font-size:13px}}
+.sb-footer{{padding:16px;border-top:1px solid var(--border)}}
+.user-chip{{background:rgba(255,255,255,0.04);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:10px}}
+.u-avatar{{width:28px;height:28px;border-radius:7px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex-shrink:0}}
+.u-name{{font-size:12px;font-weight:700;color:var(--text)}}
+.u-role{{font-size:10px;color:var(--muted2)}}
+.logout-link{{display:block;text-align:center;font-size:11px;color:var(--muted);text-decoration:none;padding:6px;border:1px solid var(--border);border-radius:8px}}
+.logout-link:hover{{color:var(--text)}}
+.main{{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}}
+.main-content{{flex:1;padding:32px 32px 48px}}
+.page-hdr{{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}}
+.page-title{{font-size:22px;font-weight:800;letter-spacing:-.03em}}
+.page-sub{{font-size:12px;color:var(--muted);margin-top:4px;font-weight:500}}
+.metrics-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px}}
+.metric-card{{background:var(--surface);border-radius:16px;padding:20px;border:1px solid var(--border)}}
+.card{{background:var(--surface);border-radius:18px;padding:24px;border:1px solid var(--border);margin-bottom:16px}}
+.card-header{{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}}
+.card-title{{font-size:14px;font-weight:700}}
+.action-card{{background:var(--surface);border-radius:18px;padding:28px;border:1px solid var(--border);
+  margin-bottom:16px;border-left:3px solid var(--indigo);}}
+.action-card h3{{font-size:16px;font-weight:800;margin-bottom:6px}}
+.action-card p{{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px}}
+.btn{{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-family:var(--font);
+  font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .15s}}
+.btn-primary{{background:var(--grad);color:#fff}}
+.btn-ghost{{background:rgba(255,255,255,0.06);color:var(--text);border:1px solid var(--border)}}
+.btn-primary:hover{{opacity:.9}}
+.btn-ghost:hover{{background:rgba(255,255,255,0.1)}}
+.badge{{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}}
+.b-sent{{background:rgba(99,102,241,.15);color:#818cf8}}
+.b-replied{{background:rgba(34,197,94,.15);color:#4ade80}}
+.b-unsubscribed{{background:rgba(244,63,94,.12);color:#fb7185}}
+.tbl-wrap{{overflow-x:auto;border-radius:12px;border:1px solid var(--border)}}
+table{{width:100%;border-collapse:collapse;font-size:13px}}
+thead th{{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}}
+tbody td{{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle}}
+tbody tr:last-child td{{border-bottom:none}}
+.empty-state{{text-align:center;padding:40px;color:var(--muted);font-size:13px}}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-mark">L</div>
+    <div><div class="sb-logo-text">Lumera</div><div class="sb-logo-sub">Client Portal</div></div>
+  </div>
+  <div class="nav-wrap">{nav_html}</div>
+  <div class="sb-footer">
+    <div class="user-chip">
+      <div class="u-avatar">{user[0].upper() if user else "?"}</div>
+      <div><div class="u-name">{user}</div><div class="u-role">client</div></div>
+    </div>
+    <a href="/logout" class="logout-link">Sign out</a>
+  </div>
+</div>
+<div class="main"><div class="main-content">{content}</div></div>
+</body></html>"""
+
+
 # ─────────────────────────────────────────────
 # DATABASE
 # ─────────────────────────────────────────────
@@ -1091,7 +1199,7 @@ def login_post(request: Request, username: str = Form(...), password: str = Form
         token = secrets.token_hex(32)
         db_run("INSERT OR REPLACE INTO sessions(token,username,expires_at) VALUES(?,?,?)",
                (token, username, expires))
-        resp = RedirectResponse("/leads", status_code=303)
+        resp = RedirectResponse("/client-home", status_code=303)
         resp.set_cookie("lumera_token", token, httponly=True, max_age=86400*7)
         return resp
     return RedirectResponse("/login?error=Invalid+credentials", status_code=303)
@@ -1548,6 +1656,241 @@ def leads_page(request: Request):
     {niches_html or '<div class="empty-state">No leads. Run your scraper first.</div>'}"""
     return HTMLResponse(shell(content, "leads", user))
 
+
+
+# ─────────────────────────────────────────────
+# CLIENT PORTAL PAGES
+# ─────────────────────────────────────────────
+
+@app.get("/client-home", response_class=HTMLResponse)
+def client_home(request: Request):
+    user = get_current_user(request)
+    if not user: return RedirectResponse("/login")
+    if not is_client(user): return RedirectResponse("/overview")
+
+    outreach = get_all_outreach()
+    bookings = get_all_bookings()
+
+    total_sent    = len(outreach)
+    replied       = sum(1 for r in outreach if r.get("replied"))
+    pending       = sum(1 for r in outreach if not r.get("replied") and not r.get("unsubscribed") and r.get("step",1) < 3)
+    upcoming_book = [b for b in bookings if b["start_time"] >= datetime.now().isoformat() and b["status"] == "confirmed"]
+
+    # Build action items
+    actions_html = ""
+
+    if upcoming_book:
+        b = upcoming_book[0]
+        try: dts = datetime.fromisoformat(b["start_time"]).strftime("%A %b %d at %I:%M %p")
+        except: dts = b["start_time"][:16]
+        meet = b.get("meet_link","")
+        meet_btn = f'<a href="{meet}" target="_blank" class="btn btn-primary"><i class="fa-solid fa-video"></i> Join Call</a>' if meet else ""
+        actions_html += f'''
+        <div class="action-card" style="border-left-color:#22c55e">
+          <h3><i class="fa-solid fa-calendar-check" style="color:#22c55e;margin-right:8px"></i>You have a call coming up</h3>
+          <p>Your strategy call is scheduled for <strong>{dts} CT</strong>. Make sure you're ready 5 minutes early.</p>
+          {meet_btn}
+        </div>'''
+
+    if replied:
+        actions_html += f'''
+        <div class="action-card" style="border-left-color:#3b82f6">
+          <h3><i class="fa-solid fa-reply" style="color:#3b82f6;margin-right:8px"></i>{replied} lead{"s" if replied>1 else ""} replied to your emails</h3>
+          <p>Someone responded to your outreach. Check your email inbox or view the details below.</p>
+          <a href="/client-emails" class="btn btn-primary"><i class="fa-solid fa-envelope"></i> View Replies</a>
+        </div>'''
+
+    if pending > 0:
+        actions_html += f'''
+        <div class="action-card">
+          <h3><i class="fa-solid fa-paper-plane" style="color:var(--indigo);margin-right:8px"></i>{pending} follow-up emails going out soon</h3>
+          <p>Your automated follow-up sequence is running. These emails will be sent automatically — no action needed.</p>
+        </div>'''
+
+    if not actions_html:
+        actions_html = '''
+        <div class="action-card" style="border-left-color:var(--muted)">
+          <h3><i class="fa-solid fa-circle-check" style="color:var(--muted);margin-right:8px"></i>Everything is running smoothly</h3>
+          <p>Your outreach is active. New leads are added weekly and emails go out automatically. Check back soon for updates.</p>
+        </div>'''
+
+    # Stats row
+    def ccard(icon, label, value, color="var(--indigo)"):
+        return f'''<div class="metric-card">
+          <div style="font-size:22px;margin-bottom:8px">{icon}</div>
+          <div style="font-size:28px;font-weight:800;color:{color}">{value}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:600">{label}</div>
+        </div>'''
+
+    content_html = f'''
+    <div class="page-hdr">
+      <div>
+        <div class="page-title">Welcome back, {user} 👋</div>
+        <div class="page-sub">Here's what's happening with your leads today</div>
+      </div>
+      <a href="/book" class="btn btn-primary"><i class="fa-solid fa-calendar-plus"></i> Book a Call</a>
+    </div>
+    <div class="metrics-grid">
+      {ccard('<i class="fa-solid fa-paper-plane" style="color:var(--indigo)"></i>', "Emails Sent", total_sent)}
+      {ccard('<i class="fa-solid fa-reply" style="color:#22c55e"></i>', "Replies Received", replied, "#22c55e")}
+      {ccard('<i class="fa-solid fa-clock" style="color:#f59e0b"></i>', "Follow-ups Pending", pending, "#f59e0b")}
+      {ccard('<i class="fa-solid fa-calendar-check" style="color:#3b82f6"></i>', "Calls Booked", len(upcoming_book), "#3b82f6")}
+    </div>
+    <div style="margin-bottom:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">What needs your attention</div>
+    {actions_html}
+    '''
+    return HTMLResponse(shell_client(content_html, "client-home", user))
+
+
+@app.get("/client-leads", response_class=HTMLResponse)
+def client_leads(request: Request):
+    user = get_current_user(request)
+    if not user: return RedirectResponse("/login")
+    if not is_client(user): return RedirectResponse("/leads")
+
+    # Get client niche filter
+    client_rows = db_query("SELECT * FROM clients WHERE username=?", (user,))
+    client_niche = client_rows[0]["niche"] if client_rows else "*"
+
+    leads = load_all_leads()
+    if client_niche != "*":
+        leads = [l for l in leads if l.get("_niche","").lower() == client_niche.lower()]
+
+    total = len(leads)
+    hot   = sum(1 for l in leads if l["_heat"] == "hot")
+
+    rows_html = ""
+    for l in leads:
+        name    = str(l.get("Name","—"))
+        city    = str(l.get("City","—"))
+        phone   = str(l.get("Phone","")) or "—"
+        website = str(l.get("Website","—"))
+        problem = str(l.get("Problem","—"))
+        heat    = l.get("_heat","cold")
+        score   = int(l.get("Score",0) or 0)
+
+        heat_color = "#f43f5e" if heat=="hot" else "#f59e0b" if heat=="warm" else "#6366f1"
+        heat_label = "Hot" if heat=="hot" else "Warm" if heat=="warm" else "Cold"
+        has_web = website.lower() not in ["none listed","none","n/a","","nan"]
+        web_cell = f'<a href="{website}" target="_blank" style="color:var(--blue)">{website[:28]}...</a>' if has_web else '<span style="color:var(--muted)">No website</span>'
+
+        rows_html += f'''<tr>
+          <td style="font-weight:700">{name}</td>
+          <td style="color:var(--muted);font-size:12px">{city}</td>
+          <td style="font-size:12px">{phone}</td>
+          <td>{web_cell}</td>
+          <td style="font-size:11px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{problem}</td>
+          <td><span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:{heat_color}22;color:{heat_color}">{heat_label}</span></td>
+        </tr>'''
+
+    content_html = f'''
+    <div class="page-hdr">
+      <div>
+        <div class="page-title">My Leads</div>
+        <div class="page-sub">{total} leads found &nbsp;·&nbsp; {hot} hot prospects</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Your Lead Pipeline</div>
+        <span style="font-size:11px;color:var(--muted)">Updated weekly</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Business</th><th>City</th><th>Phone</th><th>Website</th><th>Why They Need You</th><th>Priority</th></tr></thead>
+          <tbody>{rows_html or '<tr><td colspan="6" class="empty-state">Your leads will appear here once your first batch is ready. This typically happens within 24 hours of getting started.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>'''
+    return HTMLResponse(shell_client(content_html, "client-leads", user))
+
+
+@app.get("/client-emails", response_class=HTMLResponse)
+def client_emails(request: Request):
+    user = get_current_user(request)
+    if not user: return RedirectResponse("/login")
+    if not is_client(user): return RedirectResponse("/outreach")
+
+    outreach = get_all_outreach()
+    total    = len(outreach)
+    replied  = sum(1 for r in outreach if r.get("replied"))
+    pending  = sum(1 for r in outreach if not r.get("replied") and not r.get("unsubscribed") and r.get("step",1) < 3)
+
+    rows_html = ""
+    for r in outreach:
+        status    = r.get("status","sent")
+        replied_f = r.get("replied",0)
+        unsub     = r.get("unsubscribed",0)
+        step      = r.get("step",1)
+        email     = r.get("email","")
+        business  = r.get("business","—")
+        enrolled  = r.get("enrolled_at","")[:10]
+
+        if replied_f:
+            status_html = '<span class="badge b-replied">Replied ✓</span>'
+            next_html   = '<span style="color:#22c55e;font-size:12px">Done</span>'
+        elif unsub:
+            status_html = '<span class="badge b-unsubscribed">Unsubscribed</span>'
+            next_html   = '—'
+        else:
+            status_html = '<span class="badge b-sent">Active</span>'
+            try:
+                ns = datetime.fromisoformat(r.get("next_send_at","")) if r.get("next_send_at") else None
+                next_html = f'<span style="font-size:12px;color:var(--muted)">{ns.strftime("%b %d") if ns else "Done"}</span>'
+            except:
+                next_html = '—'
+
+        step_dots = "".join(
+            f'<div style="width:8px;height:8px;border-radius:50%;background:{"#6366f1" if i<=step else "rgba(255,255,255,0.1)"}"></div>'
+            for i in range(1,4)
+        )
+
+        rows_html += f'''<tr>
+          <td style="font-weight:700">{business}</td>
+          <td style="font-size:12px;color:var(--muted)">{email}</td>
+          <td>{status_html}</td>
+          <td><div style="display:flex;gap:4px;align-items:center">{step_dots}<span style="font-size:11px;color:var(--muted);margin-left:4px">Step {step}/3</span></div></td>
+          <td>{next_html}</td>
+          <td style="font-size:11px;color:var(--muted)">{enrolled}</td>
+        </tr>'''
+
+    content_html = f'''
+    <div class="page-hdr">
+      <div>
+        <div class="page-title">My Emails</div>
+        <div class="page-sub">Track every email sent on your behalf</div>
+      </div>
+    </div>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div style="font-size:22px;margin-bottom:8px"><i class="fa-solid fa-paper-plane" style="color:var(--indigo)"></i></div>
+        <div style="font-size:28px;font-weight:800">{total}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:600">Total Emails Sent</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:22px;margin-bottom:8px"><i class="fa-solid fa-reply" style="color:#22c55e"></i></div>
+        <div style="font-size:28px;font-weight:800;color:#22c55e">{replied}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:600">Replies Received</div>
+      </div>
+      <div class="metric-card">
+        <div style="font-size:22px;margin-bottom:8px"><i class="fa-solid fa-clock" style="color:#f59e0b"></i></div>
+        <div style="font-size:28px;font-weight:800;color:#f59e0b">{pending}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;font-weight:600">Follow-ups Scheduled</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Email Activity</div>
+        <span style="font-size:11px;color:var(--muted)">3-step automated sequence per lead</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Business</th><th>Email</th><th>Status</th><th>Progress</th><th>Next Email</th><th>Started</th></tr></thead>
+          <tbody>{rows_html or '<tr><td colspan="6" class="empty-state">No emails sent yet. Your first batch goes out automatically once leads are ready.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>'''
+    return HTMLResponse(shell_client(content_html, "client-emails", user))
 
 # ─────────────────────────────────────────────
 # OUTREACH
