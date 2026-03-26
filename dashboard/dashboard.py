@@ -3408,7 +3408,7 @@ Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
 CTA: get started at https://app.lumeraautomation.com/book
 Sign off: Kory, Lumera Automation. No "I hope this finds you well".
 Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
-        try:
+    try:
             res = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
