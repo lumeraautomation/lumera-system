@@ -3141,3 +3141,16 @@ def debug_db():
         "db_exists": DB_PATH.exists(),
         "cwd": os.getcwd()
     }
+
+@app.get("/fix-trial-client")
+def fix_trial_client():
+    from datetime import datetime
+    db_run("DELETE FROM clients WHERE username='veturnai'")
+    db_run("""INSERT INTO clients (username, password, niche, email, business, status, start_date, notes, created_at)
+        VALUES (?,?,?,?,?,?,?,?,?)""",
+        ("veturnai","trial2026","restaurant","","Veturn AI","active",
+         datetime.now().strftime("%Y-%m-%d"),
+         "Trial - NJ restaurants",
+         datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    rows = db_query("SELECT username, password FROM clients")
+    return {"clients": rows}
