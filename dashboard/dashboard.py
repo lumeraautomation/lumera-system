@@ -3096,6 +3096,22 @@ def client_leads(request: Request):
     if client_niche != "*":
         leads = [l for l in leads if l.get("_niche","").lower() == client_niche.lower()]
 
+
+    def get_state(city_str):
+        parts = str(city_str).strip().split()
+        return parts[-1].upper() if parts and len(parts[-1]) == 2 else ""
+    all_states = sorted(set(get_state(l.get("City","")) for l in leads if get_state(l.get("City",""))))
+
+    state_filter = request.query_params.get("state","")
+    if state_filter:
+        leads = [l for l in leads if get_state(l.get("City","")) == state_filter.upper()]
+
+    state_options = "<option value=''>All States</option>" + "".join(
+        f"<option value='{s}' {'selected' if s==state_filter.upper() else ''}>{{s}}</option>"
+        for s in all_states
+    )
+    state_filter_html = f"""<div style="margin-bottom:16px;display:flex;align-items:center;gap:12px"><label style="font-size:12px;color:var(--muted);font-weight:600">Filter by State:</label><select onchange="window.location='/client-leads?state='+this.value" style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;cursor:pointer">{state_options}</select></div>"""
+
     total = len(leads)
     hot   = sum(1 for l in leads if l["_heat"] == "hot")
     rows_html = ""
@@ -3125,7 +3141,7 @@ def client_leads(request: Request):
     content_html = (
         '<div class="page-hdr"><div><div class="page-title">My Leads</div>'
         f'<div class="page-sub">{total} leads &nbsp;&middot;&nbsp; {hot} high priority</div></div></div>'
-        '<div class="card"><div class="card-title">Your Lead Pipeline</div>'
+        f'<div class="card"><div class="card-title">Your Lead Pipeline</div>{state_filter_html}'
         '<div class="tbl-wrap"><table>'
         '<thead><tr><th>Business</th><th>City</th><th>Phone</th><th>Email</th><th>Website</th><th>Why They Need You</th><th>Priority</th></tr></thead>'
         f'<tbody>{rows_html or '<tr><td colspan="6" class="empty-state">Your leads will appear here once your first batch is ready.</td></tr>'}</tbody>'
