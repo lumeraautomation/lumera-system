@@ -2728,11 +2728,40 @@ async def engine_scrape(request: Request):
                 hours_list = detail.get("opening_hours",{}).get("weekday_text",[])
                 hours = hours_list[0] if hours_list else ""
                 reviews = str(detail.get("user_ratings_total",""))
+                biz_name = detail.get("name", place.get("name",""))
+                biz_website = detail.get("website","")
+                biz_phone = detail.get("formatted_phone_number","")
+
+                # Use Perplexity to find the email
+                biz_email = ""
+                perplexity_key = os.getenv("PERPLEXITY_KEY","")
+                if perplexity_key:
+                    try:
+                        import json as _pjson
+                        email_prompt = f"Find the contact email address for {biz_name} located in {city}. Check their website {biz_website} and Google listing. Return ONLY the email address, nothing else. If not found return empty string."
+                        ep_payload = _pjson.dumps({
+                            "model": "sonar",
+                            "max_tokens": 50,
+                            "messages": [{"role": "user", "content": email_prompt}]
+                        }).encode()
+                        import urllib.request as _ereq
+                        ep_req = _ereq.Request(
+                            "https://api.perplexity.ai/chat/completions",
+                            data=ep_payload,
+                            headers={"Authorization": f"Bearer {perplexity_key}", "Content-Type": "application/json"}
+                        )
+                        with _ereq.urlopen(ep_req, timeout=10) as eresp:
+                            ep_raw = _pjson.loads(eresp.read())
+                        ep_text = ep_raw["choices"][0]["message"]["content"].strip()
+                        if "@" in ep_text and " " not in ep_text.strip():
+                            biz_email = ep_text.strip().lower()
+                    except: pass
+
                 leads_raw.append({
-                    "business": detail.get("name", place.get("name","")),
-                    "website": detail.get("website",""),
-                    "email": "",
-                    "phone": detail.get("formatted_phone_number",""),
+                    "business": biz_name,
+                    "website": biz_website,
+                    "email": biz_email,
+                    "phone": biz_phone,
                     "name": "",
                     "rating": str(detail.get("rating","")),
                     "reviews": reviews,
