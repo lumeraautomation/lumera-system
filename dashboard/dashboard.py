@@ -2696,7 +2696,7 @@ async def engine_scrape(request: Request):
 
     # Build Perplexity prompt
     prompt = (
-        f"List {count} local independently-owned {niche} businesses in {city}. For each include: business name, website, email, phone, owner first name if known, Google rating, review count, whether they have online booking (yes/no), business hours, and their biggest operational weakness. Skip national chains. Return ONLY a JSON array, no explanation. "
+        f"Search Google and Yelp for {count} small {niche} businesses in {city}. For each one find their public contact details from their website or Google Business listing. Return ONLY a raw JSON array with these fields: business, website, email, phone, name, rating, reviews, has_booking, hours, problem. Use empty string for any missing field. No markdown, no explanation, just the JSON array starting with [."
         f"For each business you MUST find a real contact email - check their website Contact page, About page, Google listing, and Facebook page. Only include businesses where you can find an email. For each also find: 1) Real contact email (REQUIRED - skip business if not found) "
         f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
         f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
@@ -2711,7 +2711,7 @@ async def engine_scrape(request: Request):
 
     try:
         payload = _json.dumps({
-            "model": "sonar-pro",
+            "model": "sonar",
             "max_tokens": 8000,
             "messages": [{"role": "user", "content": prompt}]
         }).encode()
