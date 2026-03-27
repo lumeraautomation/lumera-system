@@ -2767,7 +2767,11 @@ async def engine_scrape(request: Request):
                     "reviews": reviews,
                     "has_booking": "no",
                     "hours": hours,
-                    "problem": f"Local {niche} with {reviews} reviews" if reviews else f"Local {niche} business"
+                    "problem": (
+                        "Likely relying on paid ads with no automated follow-up system"
+                        if "spa" in niche.lower() or "med" in niche.lower() or "aesthetic" in niche.lower()
+                        else f"Local {niche} business missing inbound leads"
+                    )
                 })
             except Exception as e:
                 print(f"Place detail error: {e}")
