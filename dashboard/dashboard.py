@@ -3289,7 +3289,7 @@ Write a short personalised cold outreach email:
 Rules: Address by first name if known. Subject under 10 words specific to their problem.
 Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
 CTA: get started at {booking_url}
-Sign off: Kory, Lumera Automation. No "I hope this finds you well".
+Sign off: {sender_name}. No "I hope this finds you well".
 Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
     try:
         client=OpenAI(api_key=OPENAI_API_KEY)
@@ -3398,12 +3398,16 @@ async def send_all_pending(request: Request):
     if not pending:
         return JSONResponse({"ok": True, "sent": 0, "failed": 0, "message": "No pending leads found"})
 
-    # Get client booking URL if scraping for a specific client
+    # Get client booking URL and sender info
     booking_url = "https://app.lumeraautomation.com/book"
+    sender_name = "Kory"
+    sender_email = FROM_EMAIL
     if client:
-        client_rows = db_query("SELECT booking_url FROM clients WHERE username=?", (client,))
-        if client_rows and client_rows[0].get("booking_url"):
-            booking_url = client_rows[0]["booking_url"]
+        client_rows = db_query("SELECT booking_url, from_name, from_email FROM clients WHERE username=?", (client,))
+        if client_rows:
+            if client_rows[0].get("booking_url"): booking_url = client_rows[0]["booking_url"]
+            if client_rows[0].get("from_name"): sender_name = client_rows[0]["from_name"]
+            if client_rows[0].get("from_email"): sender_email = client_rows[0]["from_email"]
 
     sent = failed = 0
     for lead in pending:
@@ -3452,7 +3456,7 @@ async def send_all_pending(request: Request):
     Opening line: reference the specific website detail naturally — make it clear you actually looked at their business.
     Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
     CTA: get started at https://app.lumeraautomation.com/book
-    Sign off: Kory, Lumera Automation. No "I hope this finds you well".
+    Sign off: {sender_name}. No "I hope this finds you well".
     Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
         try:
             res = client.chat.completions.create(
@@ -3462,7 +3466,7 @@ async def send_all_pending(request: Request):
             raw = res.choices[0].message.content.strip().replace("```json","").replace("```","").strip()
             data = json.loads(raw)
             r.Emails.send({
-                "from": f"Kory @ Lumera Automation <{FROM_EMAIL}>",
+                "from": f"{sender_name} <{sender_email}>",
                 "to": email,
                 "subject": data["subject"],
                 "html": f"<div style='font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.6'>{data['body'].replace(chr(10),'<br>')}</div>"
