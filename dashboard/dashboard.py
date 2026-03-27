@@ -2761,17 +2761,17 @@ async def engine_scrape(request: Request):
     for l in leads_raw:
         if not isinstance(l, dict): continue
         email = (l.get("email") or "").strip().lower()
-        # Drop leads with no email AND no phone — need at least one contact method
+        # Keep lead if it has email, phone, or at least a business name
         phone_check = (l.get("phone") or "").strip()
         has_email = email and "@" in email and "example.com" not in email
         has_phone = phone_check and phone_check not in ["—","","nan","None"]
-        if not has_email and not has_phone:
+        biz_name = (l.get("business") or l.get("Name") or "").strip().lower()
+        if not has_email and not has_phone and not biz_name:
             continue
         if has_email:
             if email in seen_emails: continue
             seen_emails.add(email)
         else:
-            biz_name = (l.get("business") or l.get("name") or "").strip().lower()
             if biz_name and biz_name in seen_names: continue
             if biz_name: seen_names.add(biz_name)
         seen_emails.add(email)
