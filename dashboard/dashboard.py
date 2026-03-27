@@ -2696,7 +2696,7 @@ async def engine_scrape(request: Request):
 
     # Build Perplexity prompt
     prompt = (
-        f"Find {count} small local {niche} businesses in {city} on Google Maps. For each one visit their website and Google listing to find: their contact email, phone number, owner name, rating, review count, whether they have online booking, and their business hours. Skip chains and franchises. "
+        f"List {count} local independently-owned {niche} businesses in {city}. For each include: business name, website, email, phone, owner first name if known, Google rating, review count, whether they have online booking (yes/no), business hours, and their biggest operational weakness. Skip national chains. Return ONLY a JSON array, no explanation. "
         f"For each business you MUST find a real contact email - check their website Contact page, About page, Google listing, and Facebook page. Only include businesses where you can find an email. For each also find: 1) Real contact email (REQUIRED - skip business if not found) "
         f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
         f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
