@@ -3059,6 +3059,7 @@ def client_leads(request: Request):
         name    = str(l.get("Name","—"))
         city    = str(l.get("City","—"))
         phone   = str(l.get("Phone","")) or "—"
+        email   = str(l.get("Email","")) or "—"
         website = str(l.get("Website","—"))
         problem = str(l.get("Problem","—"))
         heat    = l.get("_heat","cold")
@@ -3066,10 +3067,12 @@ def client_leads(request: Request):
         heat_label = "High Need" if heat=="hot" else "Medium Need" if heat=="warm" else "Low Need"
         has_web = website.lower() not in ["none listed","none","n/a","","nan"]
         web_cell = f'<a href="{website}" target="_blank" style="color:var(--blue)">{website[:28]}...</a>' if has_web else '<span style="color:var(--muted)">No website</span>'
+        email_cell = f'<a href="mailto:{email}" style="color:var(--blue);font-size:12px">{email}</a>' if "@" in email else '<span style="color:var(--muted);font-size:12px">—</span>'
         rows_html += f'''<tr>
           <td style="font-weight:700">{name}</td>
           <td style="color:var(--muted);font-size:12px">{city}</td>
           <td style="font-size:12px">{phone}</td>
+          <td>{email_cell}</td>
           <td>{web_cell}</td>
           <td style="font-size:11px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{problem}</td>
           <td><span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:{heat_color}22;color:{heat_color}">{heat_label}</span></td>
@@ -3080,7 +3083,7 @@ def client_leads(request: Request):
         f'<div class="page-sub">{total} leads &nbsp;&middot;&nbsp; {hot} high priority</div></div></div>'
         '<div class="card"><div class="card-title">Your Lead Pipeline</div>'
         '<div class="tbl-wrap"><table>'
-        '<thead><tr><th>Business</th><th>City</th><th>Phone</th><th>Website</th><th>Why They Need You</th><th>Priority</th></tr></thead>'
+        '<thead><tr><th>Business</th><th>City</th><th>Phone</th><th>Email</th><th>Website</th><th>Why They Need You</th><th>Priority</th></tr></thead>'
         f'<tbody>{rows_html or '<tr><td colspan="6" class="empty-state">Your leads will appear here once your first batch is ready.</td></tr>'}</tbody>'
         '</table></div></div>'
     )
