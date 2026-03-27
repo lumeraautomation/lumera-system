@@ -3252,7 +3252,7 @@ Write a short personalised cold outreach email:
 
 Rules: Address by first name if known. Subject under 10 words specific to their problem.
 Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
-CTA: get started at https://app.lumeraautomation.com/book
+CTA: get started at {booking_url}
 Sign off: Kory, Lumera Automation. No "I hope this finds you well".
 Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
     try:
@@ -3361,6 +3361,13 @@ async def send_all_pending(request: Request):
 
     if not pending:
         return JSONResponse({"ok": True, "sent": 0, "failed": 0, "message": "No pending leads found"})
+
+    # Get client booking URL if scraping for a specific client
+    booking_url = "https://app.lumeraautomation.com/book"
+    if client:
+        client_rows = db_query("SELECT booking_url FROM clients WHERE username=?", (client,))
+        if client_rows and client_rows[0].get("booking_url"):
+            booking_url = client_rows[0]["booking_url"]
 
     sent = failed = 0
     for lead in pending:
