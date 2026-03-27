@@ -3242,6 +3242,8 @@ def setup_veturnai():
 # ─────────────────────────────────────────────
 @app.post("/api/generate-email")
 async def generate_email(request: Request):
+    booking_url = "https://app.lumeraautomation.com/book"
+    sender_name = "Kory"
     if not OPENAI_API_KEY:
         return JSONResponse({"detail":"OPENAI_API_KEY not set"},status_code=500)
     from openai import OpenAI
