@@ -358,6 +358,7 @@ def shell(content: str, active: str = "overview", user: str = "admin") -> str:
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Lumera · {active.capitalize()}</title>
+<link rel="icon" type="image/png" href="https://lumeraautomation.com/favicon.png"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
@@ -1120,6 +1121,7 @@ def login_page(request: Request, error: str = ""):
     err = f'<p style="color:var(--red);font-size:12px;margin-top:12px;text-align:center">{error}</p>' if error else ""
     return HTMLResponse(f"""<!DOCTYPE html><html><head><meta charset="UTF-8"/>
 <title>Lumera · Login</title>
+<link rel="icon" type="image/png" href="https://lumeraautomation.com/favicon.png"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet"/>
 <style>
