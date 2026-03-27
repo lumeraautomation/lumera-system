@@ -3107,7 +3107,7 @@ def client_leads(request: Request):
         leads = [l for l in leads if get_state(l.get("City","")) == state_filter.upper()]
 
     state_options = "<option value=''>All States</option>" + "".join(
-        f"<option value='{s}' {'selected' if s==state_filter.upper() else ''}>{{s}}</option>"
+        f"<option value='{s}' {'selected' if s==state_filter.upper() else ''}>{ s}</option>"
         for s in all_states
     )
     state_filter_html = f"""<div style="margin-bottom:16px;display:flex;align-items:center;gap:12px"><label style="font-size:12px;color:var(--muted);font-weight:600">Filter by State:</label><select onchange="window.location='/client-leads?state='+this.value" style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;cursor:pointer">{state_options}</select></div>"""
