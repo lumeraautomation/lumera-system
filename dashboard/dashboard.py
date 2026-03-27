@@ -3290,7 +3290,7 @@ Write a short personalised cold outreach email:
 
 Rules: Address by first name if known. Subject under 10 words specific to their problem.
 Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
-CTA: get started at {booking_url}
+CTA: get started at {booking_url} (do not add any punctuation after the URL)
 Sign off: {sender_name}. No "I hope this finds you well".
 Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
     try:
