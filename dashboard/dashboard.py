@@ -1789,6 +1789,10 @@ def system_page(request: Request):
             <option value="dentist">Dentist</option>
             <option value="chiropractor">Chiropractor</option>
             <option value="HVAC">HVAC</option>
+            <option value="realtor">Realtor</option>
+            <option value="marketing agency">Marketing Agency</option>
+            <option value="web design agency">Web Design Agency</option>
+            <option value="insurance agent">Insurance Agent</option>
             <option value="landscaping">Landscaping</option>
             <option value="cleaning service">Cleaning Service</option>
             <option value="plumber">Plumber</option>
@@ -3471,6 +3475,10 @@ async def send_all_pending(request: Request):
                 max_tokens=500, temperature=0.8)
             raw = res.choices[0].message.content.strip().replace("```json","").replace("```","").strip()
             data = json.loads(raw)
+            # Strip trailing punctuation from URLs in body
+            clean_body = data["body"]
+            import re as _re
+            clean_body = _re.sub(r'(https?://[^\s<>"]+)[.,;!?]+(?=\s|<|$)', r'\1', clean_body)
             r.Emails.send({
                 "from": f"{sender_name} <{sender_email}>",
                 "to": email,
