@@ -2694,49 +2694,55 @@ async def engine_scrape(request: Request):
     count   = min(int(data.get("count",10)), 20)
     client  = data.get("client","").strip()
 
-    # Build Perplexity prompt
-    prompt = (
-        f"Search Google and Yelp for {count} small {niche} businesses in {city}. For each one find their public contact details from their website or Google Business listing. Return ONLY a raw JSON array with these fields: business, website, email, phone, name, rating, reviews, has_booking, hours, problem. Use empty string for any missing field. No markdown, no explanation, just the JSON array starting with [."
-        f"For each business you MUST find a real contact email - check their website Contact page, About page, Google listing, and Facebook page. Only include businesses where you can find an email. For each also find: 1) Real contact email (REQUIRED - skip business if not found) "
-        f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
-        f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
-        f"8) Their biggest visible weakness or problem. "
-        f"Include ALL {count} businesses even if email is not found - use empty string for missing email. "
-        f'Return ONLY a valid JSON array of exactly {count} objects: [{{"business":"Name","website":"https://...","email":"info@...","name":"FirstName","phone":"555-123-4567","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"specific weakness"}}]. '
-        f"IMPORTANT: Respond with ONLY the raw JSON array. No markdown, no explanation, no refusals. If you cannot find an email use empty string. Always return all 20 businesses."
-    )
-
     import urllib.request as _req
     import json as _json
+    from urllib.parse import quote as _quote
+
+    GOOGLE_PLACES_KEY = os.getenv("GOOGLE_PLACES_KEY","")
+    if not GOOGLE_PLACES_KEY:
+        return JSONResponse({"detail": "GOOGLE_PLACES_KEY not set"}, status_code=500)
 
     try:
-        payload = _json.dumps({
-            "model": "sonar",
-            "max_tokens": 8000,
-            "messages": [{"role": "user", "content": prompt}]
-        }).encode()
-        req = _req.Request(
-            "https://api.perplexity.ai/chat/completions",
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {os.getenv('PERPLEXITY_KEY','')}",
-                "Content-Type": "application/json"
-            }
+        query = f"{niche} in {city}"
+        search_url = (
+            f"https://maps.googleapis.com/maps/api/place/textsearch/json"
+            f"?query={_quote(query)}&key={GOOGLE_PLACES_KEY}"
         )
-        with _req.urlopen(req, timeout=30) as resp:
-            raw = _json.loads(resp.read())
-        text = raw["choices"][0]["message"]["content"]
+        with _req.urlopen(search_url, timeout=15) as resp:
+            search_data = _json.loads(resp.read())
+        places = search_data.get("results", [])[:count]
+        leads_raw = []
+        for place in places:
+            place_id = place.get("place_id","")
+            if not place_id: continue
+            detail_url = (
+                f"https://maps.googleapis.com/maps/api/place/details/json"
+                f"?place_id={place_id}"
+                f"&fields=name,formatted_phone_number,website,rating,user_ratings_total,opening_hours,formatted_address"
+                f"&key={GOOGLE_PLACES_KEY}"
+            )
+            try:
+                with _req.urlopen(detail_url, timeout=10) as dresp:
+                    detail = _json.loads(dresp.read()).get("result",{})
+                hours_list = detail.get("opening_hours",{}).get("weekday_text",[])
+                hours = hours_list[0] if hours_list else ""
+                reviews = str(detail.get("user_ratings_total",""))
+                leads_raw.append({
+                    "business": detail.get("name", place.get("name","")),
+                    "website": detail.get("website",""),
+                    "email": "",
+                    "phone": detail.get("formatted_phone_number",""),
+                    "name": "",
+                    "rating": str(detail.get("rating","")),
+                    "reviews": reviews,
+                    "has_booking": "no",
+                    "hours": hours,
+                    "problem": f"Local {niche} with {reviews} reviews" if reviews else f"Local {niche} business"
+                })
+            except Exception as e:
+                print(f"Place detail error: {e}")
     except Exception as e:
-        return JSONResponse({"detail": f"Perplexity error: {e}"}, status_code=500)
-
-    # Parse JSON from response
-    print(f"Perplexity raw response: {text[:500]}")
-    text = text.replace("```json","").replace("```","").strip()
-    start = text.find("["); end = text.rfind("]") + 1
-    if start == -1: return JSONResponse({"detail":"No leads found in response"}, status_code=400)
-
-    try:
-        leads_raw = _json.loads(text[start:end])
+        return JSONResponse({"detail": f"Google Places error: {e}"}, status_code=500)
     except:
         # Try merging multiple arrays
         import re as _re
