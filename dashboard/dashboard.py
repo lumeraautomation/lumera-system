@@ -3140,7 +3140,10 @@ def client_emails(request: Request):
     if not user: return RedirectResponse("/login")
     if not is_client(user): return RedirectResponse("/outreach")
 
-    outreach = get_all_outreach()
+    client_rows = db_query("SELECT * FROM clients WHERE username=?", (user,))
+    client_niche = client_rows[0]["niche"].lower() if client_rows else "*"
+    all_outreach = get_all_outreach()
+    outreach = [r for r in all_outreach if r.get("niche","").lower() == client_niche] if client_niche != "*" else all_outreach
     total   = len(outreach)
     replied = sum(1 for r in outreach if r.get("replied"))
     pending = sum(1 for r in outreach if not r.get("replied") and not r.get("unsubscribed") and r.get("step",1) < 3)
