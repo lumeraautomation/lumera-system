@@ -2711,6 +2711,7 @@ async def engine_scrape(request: Request):
         with _req.urlopen(search_url, timeout=15) as resp:
             search_data = _json.loads(resp.read())
         places = search_data.get("results", [])[:count]
+        print(f"Google Places search returned {len(places)} places, status: {search_data.get('status')}")
         leads_raw = []
         for place in places:
             place_id = place.get("place_id","")
