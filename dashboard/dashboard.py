@@ -3411,7 +3411,7 @@ async def send_all_pending(request: Request):
     from openai import OpenAI
     import resend as r
     r.api_key = RESEND_API_KEY
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client_oai = OpenAI(api_key=OPENAI_API_KEY)
 
     # Get already-enrolled emails
     enrolled = {row["email"] for row in get_all_outreach()}
@@ -3433,12 +3433,14 @@ async def send_all_pending(request: Request):
     booking_url = "https://app.lumeraautomation.com/book"
     sender_name = "Kory"
     sender_email = FROM_EMAIL
+    resend_key = RESEND_API_KEY
     if client:
-        client_rows = db_query("SELECT booking_url, from_name, from_email FROM clients WHERE username=?", (client,))
+        client_rows = db_query("SELECT booking_url, from_name, from_email, resend_key FROM clients WHERE username=?", (client,))
         if client_rows:
             if client_rows[0].get("booking_url"): booking_url = client_rows[0]["booking_url"]
             if client_rows[0].get("from_name"): sender_name = client_rows[0]["from_name"]
             if client_rows[0].get("from_email"): sender_email = client_rows[0]["from_email"]
+            if client_rows[0].get("resend_key"): resend_key = client_rows[0]["resend_key"]
 
     sent = failed = 0
     for lead in pending:
@@ -3500,6 +3502,7 @@ async def send_all_pending(request: Request):
             clean_body = data["body"]
             import re as _re
             clean_body = _re.sub(r'(https?://[^\s<>"]+)[.,;!?]+(?=\s|<|$)', r'\1', clean_body)
+            r.api_key = resend_key
             r.Emails.send({
                 "from": f"{sender_name} <{sender_email}>",
                 "to": email,
