@@ -223,13 +223,13 @@ def send_booking_confirmation(name, email, time_str, meet_link=None):
             "from":f"Kory @ Lumera Automation <{FROM_EMAIL}>",
             "to":email,
             "subject":"Your Lumera Strategy Call is Confirmed!",
-            "html":f"""<div style="font-family:'Helvetica Neue',sans-serif;max-width:540px;margin:0 auto;background:#080808;color:#ffffff;padding:40px;border-radius:16px;border:1px solid rgba(255,255,255,0.07);">
-                <div style="font-size:20px;font-weight:800;background:linear-gradient(135deg,#3b82f6,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:20px;">LUMERA</div>
-                <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;">You're booked, {name}!</h2>
-                <p style="color:rgba(255,255,255,0.5);margin-bottom:20px;">Your free 30-minute strategy call is confirmed for<br><strong style="color:#fff;">{time_str}</strong></p>
+            "html":f"""<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.7;padding:20px;">
+                <p style="font-size:13px;font-weight:700;color:#6366f1;margin-bottom:16px;">LUMERA AUTOMATION</p>
+                <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;color:#111;">You're booked, {name}!</h2>
+                <p style="color:#555;margin-bottom:20px;">Your free 30-minute strategy call is confirmed for<br><strong style="color:#111;">{time_str}</strong></p>
                 {meet_html}
-                <p style="color:rgba(255,255,255,0.45);font-size:14px;">We'll walk through your business and show exactly how Lumera can work for you.</p>
-                <br><p style="color:rgba(255,255,255,0.3);font-size:13px;">— Kory @ Lumera Automation</p>
+                <p style="color:#555;font-size:14px;">We'll walk through your business and show exactly how Lumera can work for you.</p>
+                <br><p style="color:#888;font-size:13px;">— Kory @ Lumera Automation</p>
             </div>"""
         })
     except Exception as e: print(f"Email error: {e}")
@@ -636,10 +636,10 @@ td.bold{{color:var(--text);font-weight:700;}}
   align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);}}
 .modal-overlay.open{{display:flex;}}
 .modal{{background:var(--surface);border:1px solid var(--border2);border-radius:18px;
-  padding:28px;width:100%;max-width:500px;max-height:88vh;overflow-y:auto;}}
+  padding:28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;}}
 .modal h3{{font-size:15px;font-weight:800;margin-bottom:20px;color:var(--text);}}
 .modal-btns{{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}}
-.email-modal{{max-width:580px;max-height:88vh;}}
+.email-modal{{max-width:580px;}}
 
 /* TOAST */
 .toast{{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border2);
@@ -795,14 +795,13 @@ function toast(msg,type=''){{
 function filterLeads(){{
   const q=(document.getElementById('searchBox')?.value||'').toLowerCase();
   const h=document.getElementById('heatFilter')?.value||'all';
-  const n=(document.getElementById('nicheFilter')?.value||'').toLowerCase();
+  const nf=(document.getElementById('nicheFilter')?.value||'').toLowerCase();
   document.querySelectorAll('.lead-card').forEach(el=>{{
     const mQ=!q||el.textContent.toLowerCase().includes(q);
     const mH=h==='all'||el.dataset.heat===h;
-    const mN=!n||el.textContent.toLowerCase().includes(n);
+    const mN=!nf||el.textContent.toLowerCase().includes(nf);
     el.style.display=(mQ&&mH&&mN)?'':'none';
   }});
-  // Hide empty niche sections
   document.querySelectorAll('[data-niche-section]').forEach(sec=>{{
     const visible=[...sec.querySelectorAll('.lead-card')].some(c=>c.style.display!=='none');
     sec.style.display=visible?'':'none';
@@ -817,12 +816,12 @@ function setView(v){{
   const cards=document.querySelectorAll('.leads-grid');
   if(v==='list'){{
     cards.forEach(g=>{{g.style.gridTemplateColumns='1fr';}});
+    document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
     document.getElementById('view-list')?.classList.add('active');
-    document.getElementById('view-card')?.classList.remove('active');
   }}else{{
     cards.forEach(g=>{{g.style.gridTemplateColumns='';}});
+    document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
     document.getElementById('view-card')?.classList.add('active');
-    document.getElementById('view-list')?.classList.remove('active');
   }}
   localStorage.setItem('leads-view',v);
 }}
@@ -1611,8 +1610,8 @@ def leads_page(request: Request):
         <option value="">All Niches</option>
         {niche_opts}
       </select>
-      <button class="heat-btn" onclick="setView('card')" id="view-card" title="Card view"><i class="fa-solid fa-grip"></i></button>
-      <button class="heat-btn" onclick="setView('list')" id="view-list" title="List view"><i class="fa-solid fa-list"></i></button>
+      <button class="view-btn active" onclick="setView('card')" id="view-card" title="Card view" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer;font-size:12px"><i class="fa-solid fa-grip"></i></button>
+      <button class="view-btn" onclick="setView('list')" id="view-list" title="List view" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border2);background:rgba(255,255,255,.06);color:var(--text);cursor:pointer;font-size:12px"><i class="fa-solid fa-list"></i></button>
     </div>
     <div class="bulk-bar" id="bulkBar">
       <span id="selCount">0 selected</span>
@@ -2000,7 +1999,7 @@ def team_page(request: Request):
     for c in clients:
         rows+=f"""<tr>
           <td class="bold" style="font-family:monospace">{c.get('username','—')}</td>
-          <td style="color:rgba(255,255,255,.7)">{c.get('business','—')}</td>
+          <td style="color:#555">{c.get('business','—')}</td>
           <td><a href="mailto:{c.get('email','')}" style="font-size:12px">{c.get('email','—')}</a></td>
           <td style="font-size:12px;color:var(--muted)">{c.get('niche','*')}</td>
           <td style="color:var(--green);font-weight:700">${c.get('monthly_fee',0):,.0f}/mo</td>
@@ -2423,9 +2422,9 @@ async def book_submit(request: Request):
                 "html": f"""<div style="font-family:sans-serif;max-width:540px;margin:0 auto;background:#080808;color:#fff;padding:40px;border-radius:16px;border:1px solid rgba(255,255,255,0.07)">
                     <div style="font-size:20px;font-weight:800;background:linear-gradient(135deg,#3b82f6,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:20px">LUMERA</div>
                     <h2 style="font-size:18px;font-weight:700;margin-bottom:8px">Hey {name.split()[0]}! Application received.</h2>
-                    <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;margin-bottom:20px">Thanks for reaching out. We'll review your details and get back to you within 24 hours to schedule your free strategy call.</p>
-                    <p style="color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7;margin-bottom:24px">On the call we'll walk through your niche, your targets, and show you exactly how Lumera works — no pitch, just a real conversation.</p>
-                    <p style="color:rgba(255,255,255,0.3);font-size:13px">— Kory @ Lumera Automation</p>
+                    <p style="color:#555;font-size:14px;line-height:1.7;margin-bottom:20px">Thanks for reaching out. We'll review your details and get back to you within 24 hours to schedule your free strategy call.</p>
+                    <p style="color:#555;font-size:14px;line-height:1.7;margin-bottom:24px">On the call we'll walk through your niche, your targets, and show you exactly how Lumera works — no pitch, just a real conversation.</p>
+                    <p style="color:#555;font-size:13px">— Kory @ Lumera Automation</p>
                 </div>"""
                     })
         except Exception as e:
@@ -2701,9 +2700,9 @@ async def engine_scrape(request: Request):
         f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
         f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
         f"8) Their biggest visible weakness or problem. "
-        f"Include ALL {count} businesses even if email is not found - use empty string for missing email. "
-        f'Return ONLY a valid JSON array of exactly {count} objects: [{{"business":"Name","website":"https://...","email":"info@...","name":"FirstName","phone":"555-123-4567","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"specific weakness"}}]. '
-        f"No markdown, no explanation, just the JSON array."
+        f"Only include businesses with a confirmed real email. "
+        f'Return ONLY a valid JSON array: [{{"business":"Name","website":"https://...","email":"info@...","name":"FirstName","phone":"","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"specific weakness"}}]. '
+        f"Do not include businesses without a confirmed real email."
     )
 
     import urllib.request as _req
@@ -2712,7 +2711,6 @@ async def engine_scrape(request: Request):
     try:
         payload = _json.dumps({
             "model": "sonar",
-            "max_tokens": 8000,
             "messages": [{"role": "user", "content": prompt}]
         }).encode()
         req = _req.Request(
@@ -2747,23 +2745,14 @@ async def engine_scrape(request: Request):
                 leads_raw.extend([i for i in items if isinstance(i, dict)])
             except: pass
 
-    # Process leads — keep leads even if email is missing
-    seen_emails = set()
-    seen_names  = set()
+    # Process leads
+    seen = set()
     leads_out = []
     for l in leads_raw:
         if not isinstance(l, dict): continue
         email = (l.get("email") or "").strip().lower()
-        biz_name = (l.get("business") or l.get("name") or "").strip().lower()
-
-        # Dedupe: skip duplicate emails; for no-email leads dedupe by biz name
-        if email and "@" in email:
-            if email in seen_emails: continue
-            seen_emails.add(email)
-        else:
-            email = ""
-            if biz_name and biz_name in seen_names: continue
-            if biz_name: seen_names.add(biz_name)
+        if not email or "@" not in email or email in seen: continue
+        seen.add(email)
 
         phone   = l.get("phone","") or ""
         website = l.get("website","") or "None listed"
@@ -3135,6 +3124,175 @@ def client_emails(request: Request):
         + '</table></div></div>'
     )
     return HTMLResponse(shell_client(content_html, "client-emails", user))
+
+
+@app.get("/send-report/{username}")
+def send_report(username: str, request: Request):
+    user = get_current_user(request)
+    if not user: return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+
+    # Get client info
+    client_rows = db_query("SELECT * FROM clients WHERE username=?", (username,))
+    if not client_rows:
+        return JSONResponse({"detail": f"Client {username} not found"}, status_code=404)
+    client = client_rows[0]
+    client_email = client.get("email","")
+    client_biz   = client.get("business", username)
+    client_niche = client.get("niche","")
+
+    # Get outreach stats
+    all_outreach = get_all_outreach()
+    total_sent   = len(all_outreach)
+    replied      = [r for r in all_outreach if r.get("replied")]
+    pending      = [r for r in all_outreach if not r.get("replied") and not r.get("unsubscribed") and r.get("step",1) < 3]
+    unsubbed     = [r for r in all_outreach if r.get("unsubscribed")]
+
+    # Get leads
+    leads = load_all_leads()
+    if client_niche and client_niche != "*":
+        leads = [l for l in leads if l.get("_niche","").lower() == client_niche.lower()]
+    total_leads = len(leads)
+    hot_leads   = sum(1 for l in leads if l.get("_heat") == "hot")
+
+    # Build sample emails table
+    sample_rows = ""
+    for r in all_outreach[:5]:
+        step = r.get("step", 1)
+        status = "Replied ✅" if r.get("replied") else ("Unsubscribed" if r.get("unsubscribed") else f"Sent (Step {step}/3)")
+        sample_rows += f"""<tr>
+            <td style="padding:10px 12px;border-bottom:1px solid #eee;font-weight:600;color:#111">{r.get("business","—")}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#555;font-size:13px">{r.get("email","—")}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#555;font-size:13px">{status}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#888;font-size:12px">{r.get("enrolled_at","")[:10]}</td>
+        </tr>"""
+
+    replied_rows = ""
+    if replied:
+        for r in replied:
+            replied_rows += f"""<tr>
+                <td style="padding:10px 12px;border-bottom:1px solid #eee;font-weight:600;color:#111">{r.get("business","—")}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#555;font-size:13px">{r.get("email","—")}</td>
+                <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#888;font-size:12px">{r.get("enrolled_at","")[:10]}</td>
+            </tr>"""
+    else:
+        replied_rows = '<tr><td colspan="3" style="padding:16px;text-align:center;color:#888;font-size:13px">No replies yet — follow-ups are running automatically</td></tr>'
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/></head>
+<body style="font-family:Arial,sans-serif;background:#f9f9f9;padding:40px 20px;color:#222">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#3b82f6,#6366f1);padding:32px 36px">
+    <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Lumera Automation</div>
+    <div style="font-size:24px;font-weight:800;color:#fff">Your Outreach Report</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:4px">{client_biz} &nbsp;·&nbsp; {datetime.now().strftime("%B %d, %Y")}</div>
+  </div>
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:0">
+    <div style="padding:24px 20px;text-align:center;border-right:1px solid #eee;border-bottom:1px solid #eee">
+      <div style="font-size:32px;font-weight:800;color:#6366f1">{total_leads}</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-top:4px">Leads Found</div>
+    </div>
+    <div style="padding:24px 20px;text-align:center;border-right:1px solid #eee;border-bottom:1px solid #eee">
+      <div style="font-size:32px;font-weight:800;color:#3b82f6">{total_sent}</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-top:4px">Emails Sent</div>
+    </div>
+    <div style="padding:24px 20px;text-align:center;border-right:1px solid #eee;border-bottom:1px solid #eee">
+      <div style="font-size:32px;font-weight:800;color:#22c55e">{len(replied)}</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-top:4px">Replies</div>
+    </div>
+    <div style="padding:24px 20px;text-align:center;border-bottom:1px solid #eee">
+      <div style="font-size:32px;font-weight:800;color:#f59e0b">{len(pending)}</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-top:4px">Follow-ups Pending</div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div style="padding:32px 36px">
+
+    <p style="font-size:15px;line-height:1.7;color:#333;margin-bottom:24px">
+      Here's a snapshot of your Lumera trial so far. We've pulled <strong>{total_leads} NJ restaurant leads</strong>, 
+      sent <strong>{total_sent} personalized outreach emails</strong> on your behalf, and have 
+      <strong>{len(pending)} follow-ups</strong> scheduled to go out automatically over the next few days.
+    </p>
+
+    <!-- Replies section -->
+    <div style="margin-bottom:28px">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:12px">Replies Received</div>
+      <div style="border:1px solid #eee;border-radius:8px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <thead>
+            <tr style="background:#f8f8f8">
+              <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888">Business</th>
+              <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888">Email</th>
+              <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888">Date</th>
+            </tr>
+          </thead>
+          <tbody>{replied_rows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sample outreach -->
+    <div style="margin-bottom:28px">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:12px">Recent Outreach</div>
+      <div style="border:1px solid #eee;border-radius:8px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <thead>
+            <tr style="background:#f8f8f8">
+              <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888">Business</th>
+              <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888">Email</th>
+              <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888">Status</th>
+              <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888">Date</th>
+            </tr>
+          </thead>
+          <tbody>{sample_rows or "<tr><td colspan='4' style='padding:16px;text-align:center;color:#888'>No outreach yet</td></tr>"}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- What's next -->
+    <div style="background:#f8f8ff;border:1px solid #e0e0ff;border-radius:8px;padding:20px 24px;margin-bottom:28px">
+      <div style="font-size:13px;font-weight:700;color:#6366f1;margin-bottom:8px">What happens next</div>
+      <ul style="font-size:13px;color:#555;line-height:1.8;padding-left:16px;margin:0">
+        <li>Day 3 + Day 5 follow-up emails go out automatically</li>
+        <li>Any replies come straight to your inbox at snayak@veturn.ai</li>
+        <li>Warm leads can be pushed directly to your booking page at veturn.ai/contact</li>
+        <li>We recommend calling any warm leads directly for fastest results</li>
+      </ul>
+    </div>
+
+    <p style="font-size:13px;color:#888;line-height:1.7">
+      Questions or want to make changes to the targeting? Just reply to this email.<br><br>
+      — Kory @ Lumera Automation<br>
+      <a href="mailto:kory@lumeraautomation.com" style="color:#6366f1">kory@lumeraautomation.com</a>
+    </p>
+
+  </div>
+</div>
+</body></html>"""
+
+    # Send email
+    if not RESEND_API_KEY:
+        return JSONResponse({"detail": "RESEND_API_KEY not set"}, status_code=500)
+
+    try:
+        import resend as _r
+        _r.api_key = RESEND_API_KEY
+        recipients = [r for r in [client_email, "kory@lumeraautomation.com"] if r]
+        _r.Emails.send({
+            "from": f"Kory @ Lumera Automation <{FROM_EMAIL}>",
+            "to": recipients,
+            "subject": f"Your Lumera Trial Report — {datetime.now().strftime('%B %d')}",
+            "html": html
+        })
+        return JSONResponse({"ok": True, "sent_to": recipients, "stats": {
+            "leads": total_leads, "sent": total_sent, "replied": len(replied), "pending": len(pending)
+        }})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
 @app.get("/check-veturnai")
