@@ -26,7 +26,7 @@ CALENDAR_ID          = os.getenv("CALENDAR_ID")
 MEET_LINK            = os.getenv("MEET_LINK", "https://meet.google.com/new")
 DB_PATH              = Path("/data/outreach.db")
 DAILY_LEADS_DIR      = Path("/data/daily_leads")
-DAILY_LEADS_DIR.mkdir(parents=True, exist_ok=True)  # Create if not exists (important on Render)
+DAILY_LEADS_DIR.mkdir(exist_ok=True)  # Create if not exists (important on Render)
 SCRIPTS_DIR          = Path(__file__).parent.parent / "scripts"
 CENTRAL              = pytz.timezone("America/Chicago")
 CALL_DURATION_MINS   = 30
@@ -358,7 +358,6 @@ def shell(content: str, active: str = "overview", user: str = "admin") -> str:
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Lumera · {active.capitalize()}</title>
-<link rel="icon" type="image/png" href="https://lumeraautomation.com/favicon.png"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
@@ -1121,7 +1120,6 @@ def login_page(request: Request, error: str = ""):
     err = f'<p style="color:var(--red);font-size:12px;margin-top:12px;text-align:center">{error}</p>' if error else ""
     return HTMLResponse(f"""<!DOCTYPE html><html><head><meta charset="UTF-8"/>
 <title>Lumera · Login</title>
-<link rel="icon" type="image/png" href="https://lumeraautomation.com/favicon.png"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet"/>
 <style>
@@ -1791,10 +1789,6 @@ def system_page(request: Request):
             <option value="dentist">Dentist</option>
             <option value="chiropractor">Chiropractor</option>
             <option value="HVAC">HVAC</option>
-            <option value="realtor">Realtor</option>
-            <option value="marketing agency">Marketing Agency</option>
-            <option value="web design agency">Web Design Agency</option>
-            <option value="insurance agent">Insurance Agent</option>
             <option value="landscaping">Landscaping</option>
             <option value="cleaning service">Cleaning Service</option>
             <option value="plumber">Plumber</option>
@@ -2700,89 +2694,48 @@ async def engine_scrape(request: Request):
     count   = min(int(data.get("count",10)), 20)
     client  = data.get("client","").strip()
 
+    # Build Perplexity prompt
+    prompt = (
+        f"Search for {count} local {niche} businesses in {city} that would benefit from lead generation or AI automation. "
+        f"For each find: 1) Real contact email from their website Contact/About page or Google listing "
+        f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
+        f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
+        f"8) Their biggest visible weakness or problem. "
+        f"Include ALL {count} businesses even if email is not found - use empty string for missing email. "
+        f'Return ONLY a valid JSON array of exactly {count} objects: [{{"business":"Name","website":"https://...","email":"info@...","name":"FirstName","phone":"555-123-4567","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"specific weakness"}}]. '
+        f"No markdown, no explanation, just the JSON array."
+    )
+
     import urllib.request as _req
     import json as _json
-    from urllib.parse import quote as _quote
-
-    GOOGLE_PLACES_KEY = os.getenv("GOOGLE_PLACES_KEY","")
-    if not GOOGLE_PLACES_KEY:
-        return JSONResponse({"detail": "GOOGLE_PLACES_KEY not set"}, status_code=500)
 
     try:
-        query = f"{niche} in {city}"
-        search_url = (
-            f"https://maps.googleapis.com/maps/api/place/textsearch/json"
-            f"?query={_quote(query)}&key={GOOGLE_PLACES_KEY}"
+        payload = _json.dumps({
+            "model": "sonar",
+            "max_tokens": 8000,
+            "messages": [{"role": "user", "content": prompt}]
+        }).encode()
+        req = _req.Request(
+            "https://api.perplexity.ai/chat/completions",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {os.getenv('PERPLEXITY_KEY','')}",
+                "Content-Type": "application/json"
+            }
         )
-        with _req.urlopen(search_url, timeout=15) as resp:
-            search_data = _json.loads(resp.read())
-        places = search_data.get("results", [])[:count]
-        print(f"Google Places search returned {len(places)} places, status: {search_data.get('status')}")
-        leads_raw = []
-        for place in places:
-            place_id = place.get("place_id","")
-            if not place_id: continue
-            detail_url = (
-                f"https://maps.googleapis.com/maps/api/place/details/json"
-                f"?place_id={place_id}"
-                f"&fields=name,formatted_phone_number,website,rating,user_ratings_total,opening_hours,formatted_address"
-                f"&key={GOOGLE_PLACES_KEY}"
-            )
-            try:
-                with _req.urlopen(detail_url, timeout=10) as dresp:
-                    detail = _json.loads(dresp.read()).get("result",{})
-                hours_list = detail.get("opening_hours",{}).get("weekday_text",[])
-                hours = hours_list[0] if hours_list else ""
-                reviews = str(detail.get("user_ratings_total",""))
-                biz_name = detail.get("name", place.get("name",""))
-                biz_website = detail.get("website","")
-                biz_phone = detail.get("formatted_phone_number","")
-
-                # Use Perplexity to find the email
-                biz_email = ""
-                perplexity_key = os.getenv("PERPLEXITY_KEY","")
-                if perplexity_key:
-                    try:
-                        import json as _pjson
-                        email_prompt = f"Find the contact email address for {biz_name} located in {city}. Check their website {biz_website} and Google listing. Return ONLY the email address, nothing else. If not found return empty string."
-                        ep_payload = _pjson.dumps({
-                            "model": "sonar",
-                            "max_tokens": 50,
-                            "messages": [{"role": "user", "content": email_prompt}]
-                        }).encode()
-                        import urllib.request as _ereq
-                        ep_req = _ereq.Request(
-                            "https://api.perplexity.ai/chat/completions",
-                            data=ep_payload,
-                            headers={"Authorization": f"Bearer {perplexity_key}", "Content-Type": "application/json"}
-                        )
-                        with _ereq.urlopen(ep_req, timeout=10) as eresp:
-                            ep_raw = _pjson.loads(eresp.read())
-                        ep_text = ep_raw["choices"][0]["message"]["content"].strip()
-                        if "@" in ep_text and " " not in ep_text.strip():
-                            biz_email = ep_text.strip().lower()
-                    except: pass
-
-                leads_raw.append({
-                    "business": biz_name,
-                    "website": biz_website,
-                    "email": biz_email,
-                    "phone": biz_phone,
-                    "name": "",
-                    "rating": str(detail.get("rating","")),
-                    "reviews": reviews,
-                    "has_booking": "no",
-                    "hours": hours,
-                    "problem": (
-                        "Likely relying on paid ads with no automated follow-up system"
-                        if "spa" in niche.lower() or "med" in niche.lower() or "aesthetic" in niche.lower()
-                        else f"Local {niche} business missing inbound leads"
-                    )
-                })
-            except Exception as e:
-                print(f"Place detail error: {e}")
+        with _req.urlopen(req, timeout=30) as resp:
+            raw = _json.loads(resp.read())
+        text = raw["choices"][0]["message"]["content"]
     except Exception as e:
-        return JSONResponse({"detail": f"Google Places error: {e}"}, status_code=500)
+        return JSONResponse({"detail": f"Perplexity error: {e}"}, status_code=500)
+
+    # Parse JSON from response
+    text = text.replace("```json","").replace("```","").strip()
+    start = text.find("["); end = text.rfind("]") + 1
+    if start == -1: return JSONResponse({"detail":"No leads found in response"}, status_code=400)
+
+    try:
+        leads_raw = _json.loads(text[start:end])
     except:
         # Try merging multiple arrays
         import re as _re
@@ -2794,27 +2747,23 @@ async def engine_scrape(request: Request):
                 leads_raw.extend([i for i in items if isinstance(i, dict)])
             except: pass
 
-    # Process leads
+    # Process leads — keep leads even if email is missing
     seen_emails = set()
     seen_names  = set()
     leads_out = []
     for l in leads_raw:
         if not isinstance(l, dict): continue
         email = (l.get("email") or "").strip().lower()
-        # Keep lead if it has email, phone, or at least a business name
-        phone_check = (l.get("phone") or "").strip()
-        has_email = email and "@" in email and "example.com" not in email
-        has_phone = phone_check and phone_check not in ["—","","nan","None"]
-        biz_name = (l.get("business") or l.get("Name") or "").strip().lower()
-        if not has_email and not has_phone and not biz_name:
-            continue
-        if has_email:
+        biz_name = (l.get("business") or l.get("name") or "").strip().lower()
+
+        # Dedupe: skip duplicate emails; for no-email leads dedupe by biz name
+        if email and "@" in email:
             if email in seen_emails: continue
             seen_emails.add(email)
         else:
+            email = ""
             if biz_name and biz_name in seen_names: continue
             if biz_name: seen_names.add(biz_name)
-        seen_emails.add(email)
 
         phone   = l.get("phone","") or ""
         website = l.get("website","") or "None listed"
@@ -2824,28 +2773,16 @@ async def engine_scrape(request: Request):
         has_bk  = l.get("has_booking","") or ""
         hours   = l.get("hours","") or ""
 
-        # Score — reward small owner-operated, penalize chains
+        # Score
         score = 0
-        rev_count = 0
+        if phone: score += 1
+        if website.lower() in ["none listed","none","n/a",""]: score += 2
+        if any(x in has_bk.lower() for x in ["no","false","none"]): score += 1
         try:
-            rev_count = int(''.join(c for c in reviews if c.isdigit()) or 0)
+            if int(''.join(c for c in reviews if c.isdigit()) or 0) >= 50: score += 1
         except: pass
-
-        # DISQUALIFY chains: 500+ reviews almost always means chain/franchise
-        if rev_count >= 500:
-            score = 0
-        else:
-            if phone: score += 1
-            if website.lower() in ["none listed","none","n/a",""]: score += 2
-            if any(x in has_bk.lower() for x in ["no","false","none"]): score += 1
-            # Sweet spot: busy enough to need help, small enough to reach owner
-            if 30 <= rev_count <= 300: score += 2
-            elif rev_count < 30: score += 1  # too new, lower confidence
-            # Owner email (gmail/yahoo = personal = reachable)
-            em = (l.get("email") or "").lower()
-            if any(x in em for x in ["gmail","yahoo","icloud","hotmail"]): score += 1
-            if any(x in (hours+problem).lower() for x in ["closes","limited","no booking","phone"]): score += 1
-            score = min(score, 5)
+        if any(x in (hours+problem).lower() for x in ["closes","limited","no booking","phone"]): score += 1
+        score = min(score, 5)
 
         leads_out.append({
             "Name": l.get("business","") or l.get("name",""),
@@ -3098,22 +3035,6 @@ def client_leads(request: Request):
     if client_niche != "*":
         leads = [l for l in leads if l.get("_niche","").lower() == client_niche.lower()]
 
-
-    def get_state(city_str):
-        parts = str(city_str).strip().split()
-        return parts[-1].upper() if parts and len(parts[-1]) == 2 else ""
-    all_states = sorted(set(get_state(l.get("City","")) for l in leads if get_state(l.get("City",""))))
-
-    state_filter = request.query_params.get("state","")
-    if state_filter:
-        leads = [l for l in leads if get_state(l.get("City","")) == state_filter.upper()]
-
-    state_options = "<option value=''>All States</option>" + "".join(
-        f"<option value='{s}' {'selected' if s==state_filter.upper() else ''}>{ s}</option>"
-        for s in all_states
-    )
-    state_filter_html = f"""<div style="margin-bottom:16px;display:flex;align-items:center;gap:12px"><label style="font-size:12px;color:var(--muted);font-weight:600">Filter by State:</label><select onchange="window.location='/client-leads?state='+this.value" style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;cursor:pointer">{state_options}</select></div>"""
-
     total = len(leads)
     hot   = sum(1 for l in leads if l["_heat"] == "hot")
     rows_html = ""
@@ -3121,7 +3042,6 @@ def client_leads(request: Request):
         name    = str(l.get("Name","—"))
         city    = str(l.get("City","—"))
         phone   = str(l.get("Phone","")) or "—"
-        email   = str(l.get("Email","")) or "—"
         website = str(l.get("Website","—"))
         problem = str(l.get("Problem","—"))
         heat    = l.get("_heat","cold")
@@ -3129,12 +3049,10 @@ def client_leads(request: Request):
         heat_label = "High Need" if heat=="hot" else "Medium Need" if heat=="warm" else "Low Need"
         has_web = website.lower() not in ["none listed","none","n/a","","nan"]
         web_cell = f'<a href="{website}" target="_blank" style="color:var(--blue)">{website[:28]}...</a>' if has_web else '<span style="color:var(--muted)">No website</span>'
-        email_cell = f'<a href="mailto:{email}" style="color:var(--blue);font-size:12px">{email}</a>' if "@" in email else '<span style="color:var(--muted);font-size:12px">—</span>'
         rows_html += f'''<tr>
           <td style="font-weight:700">{name}</td>
           <td style="color:var(--muted);font-size:12px">{city}</td>
           <td style="font-size:12px">{phone}</td>
-          <td>{email_cell}</td>
           <td>{web_cell}</td>
           <td style="font-size:11px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{problem}</td>
           <td><span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:{heat_color}22;color:{heat_color}">{heat_label}</span></td>
@@ -3143,9 +3061,9 @@ def client_leads(request: Request):
     content_html = (
         '<div class="page-hdr"><div><div class="page-title">My Leads</div>'
         f'<div class="page-sub">{total} leads &nbsp;&middot;&nbsp; {hot} high priority</div></div></div>'
-        f'<div class="card"><div class="card-title">Your Lead Pipeline</div>{state_filter_html}'
+        '<div class="card"><div class="card-title">Your Lead Pipeline</div>'
         '<div class="tbl-wrap"><table>'
-        '<thead><tr><th>Business</th><th>City</th><th>Phone</th><th>Email</th><th>Website</th><th>Why They Need You</th><th>Priority</th></tr></thead>'
+        '<thead><tr><th>Business</th><th>City</th><th>Phone</th><th>Website</th><th>Why They Need You</th><th>Priority</th></tr></thead>'
         f'<tbody>{rows_html or '<tr><td colspan="6" class="empty-state">Your leads will appear here once your first batch is ready.</td></tr>'}</tbody>'
         '</table></div></div>'
     )
@@ -3158,10 +3076,7 @@ def client_emails(request: Request):
     if not user: return RedirectResponse("/login")
     if not is_client(user): return RedirectResponse("/outreach")
 
-    client_rows = db_query("SELECT * FROM clients WHERE username=?", (user,))
-    client_niche = client_rows[0]["niche"].lower() if client_rows else "*"
-    all_outreach = get_all_outreach()
-    outreach = [r for r in all_outreach if r.get("niche","").lower() == client_niche] if client_niche != "*" else all_outreach
+    outreach = get_all_outreach()
     total   = len(outreach)
     replied = sum(1 for r in outreach if r.get("replied"))
     pending = sum(1 for r in outreach if not r.get("replied") and not r.get("unsubscribed") and r.get("step",1) < 3)
@@ -3271,8 +3186,6 @@ def setup_veturnai():
 # ─────────────────────────────────────────────
 @app.post("/api/generate-email")
 async def generate_email(request: Request):
-    booking_url = "https://app.lumeraautomation.com/book"
-    sender_name = "Kory"
     if not OPENAI_API_KEY:
         return JSONResponse({"detail":"OPENAI_API_KEY not set"},status_code=500)
     from openai import OpenAI
@@ -3319,8 +3232,8 @@ Write a short personalised cold outreach email:
 
 Rules: Address by first name if known. Subject under 10 words specific to their problem.
 Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
-CTA: get started at {booking_url} (do not add any punctuation after the URL)
-Sign off: {sender_name}. No "I hope this finds you well".
+CTA: get started at https://app.lumeraautomation.com/book
+Sign off: Kory, Lumera Automation. No "I hope this finds you well".
 Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
     try:
         client=OpenAI(api_key=OPENAI_API_KEY)
@@ -3411,7 +3324,7 @@ async def send_all_pending(request: Request):
     from openai import OpenAI
     import resend as r
     r.api_key = RESEND_API_KEY
-    client_oai = OpenAI(api_key=OPENAI_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
     # Get already-enrolled emails
     enrolled = {row["email"] for row in get_all_outreach()}
@@ -3429,68 +3342,24 @@ async def send_all_pending(request: Request):
     if not pending:
         return JSONResponse({"ok": True, "sent": 0, "failed": 0, "message": "No pending leads found"})
 
-    # Get client booking URL and sender info
-    booking_url = "https://app.lumeraautomation.com/book"
-    sender_name = "Kory"
-    sender_email = FROM_EMAIL
-    resend_key = RESEND_API_KEY
-    if client:
-        client_rows = db_query("SELECT booking_url, from_name, from_email, resend_key FROM clients WHERE username=?", (client,))
-        if client_rows:
-            if client_rows[0].get("booking_url"): booking_url = client_rows[0]["booking_url"]
-            if client_rows[0].get("from_name"): sender_name = client_rows[0]["from_name"]
-            if client_rows[0].get("from_email"): sender_email = client_rows[0]["from_email"]
-            if client_rows[0].get("resend_key"): resend_key = client_rows[0]["resend_key"]
-
     sent = failed = 0
     for lead in pending:
         email = lead["_email_clean"]
-            # Try to scrape one specific detail from their website
-        website_detail = ""
-        website = lead.get("Website", "")
-        if website and website.lower() not in ["none listed", "none", "n/a", "", "nan"]:
-            try:
-                import urllib.request as _ureq
-                from html.parser import HTMLParser
-                class _P(HTMLParser):
-                    def __init__(self):
-                        super().__init__(); self.text = []; self.skip = False
-                    def handle_starttag(self, t, a):
-                        if t in ("script","style","nav","footer"): self.skip = True
-                    def handle_endtag(self, t):
-                        if t in ("script","style","nav","footer"): self.skip = False
-                    def handle_data(self, d):
-                        if not self.skip and d.strip(): self.text.append(d.strip())
-                req = _ureq.Request(website, headers={"User-Agent":"Mozilla/5.0"})
-                with _ureq.urlopen(req, timeout=5) as r:
-                    html = r.read().decode("utf-8","ignore")
-                p = _P(); p.feed(html)
-                raw_text = " ".join(p.text)[:1500]
-                # Ask GPT to pull one specific detail
-                detail_res = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role":"user","content":f"Read this website text and extract ONE specific unique detail about this business (a specific service, specialty, award, tagline, or something that makes them stand out). Return just 1 sentence, no fluff.\n\n{raw_text}"}],
-                    max_tokens=80, temperature=0.3)
-                website_detail = detail_res.choices[0].message.content.strip()
-            except: pass
-
         prompt = f"""You are an outreach specialist for Lumera Automation, which builds AI lead generation systems for local service businesses.
 
-    Write a short personalised cold outreach email:
-    - Business: {lead.get('Name','there')}
-    - City: {lead.get('City','')}
-    - Niche: {lead.get('_niche','local business')}
-    - Problem: {lead.get('Problem','')}
-    - Website: {lead.get('Website','')}
-    {"- Owner: "+lead.get('Owner','') if lead.get('Owner') else ""}
-    {"- Specific detail from their website: "+website_detail if website_detail else ""}
+Write a short personalised cold outreach email:
+- Business: {lead.get('Name','there')}
+- City: {lead.get('City','')}
+- Niche: {lead.get('_niche','local business')}
+- Problem: {lead.get('Problem','')}
+- Website: {lead.get('Website','')}
+{"- Owner: "+lead.get('Owner','') if lead.get('Owner') else ""}
 
-    Rules: Address by first name if known. Subject under 10 words specific to their problem.
-    Opening line: reference the specific website detail naturally — make it clear you actually looked at their business.
-    Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
-    CTA: get started at https://app.lumeraautomation.com/book
-    Sign off: {sender_name}. No "I hope this finds you well".
-    Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
+Rules: Address by first name if known. Subject under 10 words specific to their problem.
+Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
+CTA: get started at https://app.lumeraautomation.com/book
+Sign off: Kory, Lumera Automation. No "I hope this finds you well".
+Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
         try:
             res = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -3498,13 +3367,8 @@ async def send_all_pending(request: Request):
                 max_tokens=500, temperature=0.8)
             raw = res.choices[0].message.content.strip().replace("```json","").replace("```","").strip()
             data = json.loads(raw)
-            # Strip trailing punctuation from URLs in body
-            clean_body = data["body"]
-            import re as _re
-            clean_body = _re.sub(r'(https?://[^\s<>"]+)[.,;!?]+(?=\s|<|$)', r'\1', clean_body)
-            r.api_key = resend_key
             r.Emails.send({
-                "from": f"{sender_name} <{sender_email}>",
+                "from": f"Kory @ Lumera Automation <{FROM_EMAIL}>",
                 "to": email,
                 "subject": data["subject"],
                 "html": f"<div style='font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.6'>{data['body'].replace(chr(10),'<br>')}</div>"
