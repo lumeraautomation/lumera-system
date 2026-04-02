@@ -3381,67 +3381,45 @@ async def generate_email(request: Request):
     is_restaurant = any(x in niche for x in ['restaurant','food','dining','cafe','bar'])
     is_website_pitch = any(x in str(lead.get('Website','')).lower() for x in ['none listed','none','n/a','']) and 'website' in str(lead.get('Problem','')).lower()
 
+    owner = lead.get('Owner','') or lead.get('Name','')
+    first_name = owner.split()[0] if owner else 'there'
+
     if is_website_pitch:
         prompt = (
-            f"Write a short cold email pitching a $500 website to a local business with no website.\n"
-            f"Business: {lead.get('Name','there')}, {lead.get('City','')}\n"
-            f"Problem: {lead.get('Problem','')}\n"
-            f"Owner: {lead.get('Owner','')}\n\n"
-            "The offer: $500 for everything they need to start getting customers online:\n"
-            "- Clean mobile-friendly page (most customers are on their phone)\n"
-            "- Service breakdown so people understand what they do\n"
-            "- Lead capture form so customers can reach out without back-and-forth\n"
-            "- Basic branding — colors, layout, clean look\n"
-            "- Setup included, ready to use right away\n"
-            "- Hosting options explained (monthly or DIY cheapest route)\n\n"
-            "Rules: Address by first name if known. Subject under 10 words. 3 short paragraphs. "
-            "Conversational not salesy. Make them feel like they're missing out on customers right now. "
-            "CTA: get started at https://app.lumeraautomation.com/book\n"
-            "Sign off: Kory. No 'I hope this finds you well'.\n"
+            f"Write a cold email from Kory to {first_name} at {lead.get('Name','')} in {lead.get('City','')}.\n"
+            f"They have no website. Problem: {lead.get('Problem','')}\n\n"
+            "Style: Write like a real person texting a business owner. Max 4 sentences total. No fluff.\n"
+            "Sentence 1: One specific observation — without a website they're invisible to people searching online right now.\n"
+            "Sentence 2: You build a clean $500 website in a week — mobile-friendly, shows what they do, lets people contact them easily.\n"
+            "Sentence 3: Worth a look? https://app.lumeraautomation.com/book\n"
+            "Subject: 5 words max, lowercase, written like a real person (example: 'your website, quick question').\n"
+            "NEVER use: I hope, I wanted to, I am reaching out, following up on, best regards, or any corporate filler.\n"
             'Return ONLY JSON: {"subject":"...","body":"..."}'
         )
     elif is_restaurant:
-        prompt=f"""You are an outreach specialist helping VeturnAI sell AI phone receptionists to restaurants.
-
-Write a short cold outreach email to a restaurant owner:
-- Restaurant: {lead.get('Name','there')}
-- City: {lead.get('City','')}
-- Problem: {lead.get('Problem','')}
-- Reviews: {lead.get('Reviews','')} (high review count = high call volume = missing calls)
-- Has online booking: {lead.get('HasBooking','unknown')}
-- Hours: {lead.get('Hours','')}
-{"- Owner: "+lead.get('Owner','') if lead.get('Owner') else ""}
-
-The pitch: VeturnAI is an AI phone receptionist that answers calls 24/7, takes reservations, answers menu questions, and handles to-go orders — even during dinner rush and after close.
-
-Pain points to reference (use whichever fits their data):
-- Missed calls during dinner rush = lost reservations and revenue
-- Voicemail after 10pm = customers calling the next place that picks up
-- No online booking = 100% phone dependent, every missed call is a missed table
-- High review count means they are busy and definitely missing calls
-
-Rules: Address by first name if known. Subject under 10 words. Conversational, not salesy.
-Body: 3 short paragraphs. Make it feel like you noticed a specific problem with their restaurant.
-CTA: Check it out at veturn.ai/contact
-Sign off: Kory. No "I hope this finds you well". No corporate speak.
-Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
+        prompt = (
+            f"Write a cold email from Kory to {first_name} at {lead.get('Name','')} in {lead.get('City','')}.\n"
+            f"Problem: {lead.get('Problem','')}. Reviews: {lead.get('Reviews','')}. Has booking: {lead.get('HasBooking','')}.\n\n"
+            "Style: Write like a real person. Max 4 sentences total. Zero corporate speak.\n"
+            "Sentence 1: Specific observation — a restaurant with lots of reviews is busy and almost certainly missing calls during dinner rush.\n"
+            "Sentence 2: VeturnAI answers every call 24/7, takes reservations, handles questions — even after close.\n"
+            "Sentence 3: Worth a look? veturn.ai/contact\n"
+            "Subject: 5 words max, lowercase, feels like a real person sent it.\n"
+            "NEVER use: I hope, I wanted to, I am reaching out, following up on, best regards, or any corporate filler.\n"
+            'Return ONLY JSON: {"subject":"...","body":"..."}'
+        )
     else:
-        prompt=f"""You are an outreach specialist for Lumera Automation, which builds AI lead generation systems for local service businesses.
-
-Write a short personalised cold outreach email:
-- Business: {lead.get('Name','there')}
-- City: {lead.get('City','')}
-- Niche: {lead.get('_niche','local business')}
-- Problem: {lead.get('Problem','')}
-- Website: {lead.get('Website','')}
-{"- Owner: "+lead.get('Owner','') if lead.get('Owner') else ""}
-{"- Extra: "+lead.get('_tone','') if lead.get('_tone') else ""}
-
-Rules: Address by first name if known. Subject under 10 words specific to their problem.
-Body: 3 short paragraphs, conversational, not salesy. Reference their problem.
-CTA: get started at https://app.lumeraautomation.com/book
-Sign off: Kory, Lumera Automation. No "I hope this finds you well".
-Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
+        prompt = (
+            f"Write a cold email from Kory to {first_name} at {lead.get('Name','')} in {lead.get('City','')}.\n"
+            f"Niche: {lead.get('_niche','local business')}. Problem: {lead.get('Problem','')}\n\n"
+            "Style: Write like a real person texting a business owner. Max 4 sentences total. No fluff.\n"
+            "Sentence 1: One specific observation about their business problem — make it feel like you noticed something real.\n"
+            "Sentence 2: Lumera finds their ideal clients, sends outreach on their behalf, books calls on their calendar. They just show up.\n"
+            "Sentence 3: Worth a quick chat? https://app.lumeraautomation.com/book\n"
+            "Subject: 5 words max, lowercase, feels human (good example: 'quick question, [first name]').\n"
+            "NEVER use: I hope, I wanted to, I am reaching out, following up on, best regards, or any corporate filler.\n"
+            'Return ONLY JSON: {"subject":"...","body":"..."}'
+        )
     try:
         client=OpenAI(api_key=OPENAI_API_KEY)
         res=client.chat.completions.create(model="gpt-4o-mini",
@@ -3604,11 +3582,16 @@ def _run_followups_sync():
     for lead in due:
         new_step = lead["step"] + 1
         label = "follow-up" if new_step == 2 else "final follow-up"
+        fname = lead['business'].split()[0] if lead['business'] else 'there'
         prompt = (
-            f"Write a short {label} email to {lead['business']} who didn't reply to our first outreach.\n"
-            f"Problem: {lead['problem']} | Niche: {lead['niche']}\n"
-            f"#{new_step-1} of 2. 2 paragraphs max. Friendly, not pushy. Reference previous outreach.\n"
-            f"CTA: book at https://app.lumeraautomation.com/book. Sign off: Kory, Lumera Automation.\n"
+            f"Write a follow-up cold email from Kory to {fname} at {lead['business']}.\n"
+            f"They didn't reply to the first email. Problem they have: {lead['problem']}\n\n"
+            "Style: Ultra short, 2-3 sentences max. Real human tone, zero corporate speak.\n"
+            "Sentence 1: Acknowledge they may have missed it — keep it light, not guilt-trippy.\n"
+            "Sentence 2: One line reminder of what Lumera does — we book calls for businesses so they don't have to chase clients.\n"
+            "Sentence 3: Still worth 15 mins? https://app.lumeraautomation.com/book\n"
+            "Subject: 5 words max, lowercase, feels human (examples: 'still worth a chat?' or 're: your business').\n"
+            "NEVER use: I hope, circling back, just following up, best regards, or any corporate filler.\n"
             f'Return ONLY JSON: {{"subject":"...","body":"..."}}'
         )
         try:
