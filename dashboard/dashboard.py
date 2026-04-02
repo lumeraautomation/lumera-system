@@ -3301,6 +3301,13 @@ def send_report(username: str, request: Request):
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
+@app.get("/check-outreach")
+def check_outreach():
+    rows = db_query("SELECT email, enrolled_at, next_send_at, step FROM outreach ORDER BY enrolled_at LIMIT 20")
+    now = datetime.now().isoformat()
+    due = db_query("SELECT count(*) as c FROM outreach WHERE next_send_at <= ? AND replied=0 AND unsubscribed=0 AND step < 3", (now,))
+    return JSONResponse({"now": now, "due": due[0]["c"] if due else 0, "rows": rows})
+
 @app.get("/check-veturnai")
 def check_veturnai():
     rows = db_query("SELECT username, password, business, niche, status FROM clients WHERE username='veturnai'")
