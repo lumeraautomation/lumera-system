@@ -1792,6 +1792,10 @@ def system_page(request: Request):
             <option value="cleaning service">Cleaning Service</option>
             <option value="plumber">Plumber</option>
             <option value="digital marketing agency">Agency</option>
+            <option value="handyman">Handyman</option>
+            <option value="auto detailing">Auto Detailing</option>
+            <option value="pressure washing">Pressure Washing</option>
+            <option value="painting contractor">Painting Contractor</option>
           </select>
         </div>
         <div>
@@ -2695,13 +2699,15 @@ async def engine_scrape(request: Request):
 
     # Build Perplexity prompt
     prompt = (
-        f"Search for {count} local {niche} businesses in {city} that would benefit from lead generation or AI automation. "
-        f"For each find: 1) Real contact email from their website Contact/About page or Google listing "
-        f"2) Phone number 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
-        f"6) Whether they have online booking - yes or no 7) Business hours especially if limited "
-        f"8) Their biggest visible weakness or problem. "
+        f"Search for {count} local {niche} businesses in {city} that have a phone number but NO professional website — "
+        f"they may only have a Facebook page, Google listing, or nothing online at all. "
+        f"For each find: 1) Real contact email from their Google listing or Facebook page "
+        f"2) Phone number (required) 3) Owner first name if available 4) Google Maps rating 5) Approximate review count "
+        f"6) Whether they have a real website (not Facebook) - yes or no 7) Business hours "
+        f"8) Their biggest visible weakness — focus on missing website, no online presence, phone-only. "
+        f"Prioritize businesses with NO website or only a Facebook page. "
         f"Only include businesses with a confirmed real email. "
-        f'Return ONLY a valid JSON array: [{{"business":"Name","website":"https://...","email":"info@...","name":"FirstName","phone":"","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"specific weakness"}}]. '
+        f'Return ONLY a valid JSON array: [{{"business":"Name","website":"None listed","email":"info@...","name":"FirstName","phone":"(615) 555-0100","rating":"4.2","reviews":"47","has_booking":"no","hours":"closes 5pm","problem":"No website, phone-only, missing online presence"}}]. '
         f"Do not include businesses without a confirmed real email."
     )
 
@@ -3350,8 +3356,28 @@ async def generate_email(request: Request):
     lead=await request.json()
     niche = lead.get('_niche','').lower()
     is_restaurant = any(x in niche for x in ['restaurant','food','dining','cafe','bar'])
+    is_website_pitch = any(x in str(lead.get('Website','')).lower() for x in ['none listed','none','n/a','']) and 'website' in str(lead.get('Problem','')).lower()
 
-    if is_restaurant:
+    if is_website_pitch:
+        prompt = (
+            f"Write a short cold email pitching a $500 website to a local business with no website.\n"
+            f"Business: {lead.get('Name','there')}, {lead.get('City','')}\n"
+            f"Problem: {lead.get('Problem','')}\n"
+            f"Owner: {lead.get('Owner','')}\n\n"
+            "The offer: $500 for everything they need to start getting customers online:\n"
+            "- Clean mobile-friendly page (most customers are on their phone)\n"
+            "- Service breakdown so people understand what they do\n"
+            "- Lead capture form so customers can reach out without back-and-forth\n"
+            "- Basic branding — colors, layout, clean look\n"
+            "- Setup included, ready to use right away\n"
+            "- Hosting options explained (monthly or DIY cheapest route)\n\n"
+            "Rules: Address by first name if known. Subject under 10 words. 3 short paragraphs. "
+            "Conversational not salesy. Make them feel like they're missing out on customers right now. "
+            "CTA: get started at https://app.lumeraautomation.com/book\n"
+            "Sign off: Kory. No 'I hope this finds you well'.\n"
+            'Return ONLY JSON: {"subject":"...","body":"..."}'
+        )
+    elif is_restaurant:
         prompt=f"""You are an outreach specialist helping VeturnAI sell AI phone receptionists to restaurants.
 
 Write a short cold outreach email to a restaurant owner:
