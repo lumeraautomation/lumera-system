@@ -3611,8 +3611,21 @@ def _run_followups_sync():
 
 
 @app.post("/cron/followups")
-async def run_followups(request: Request, background_tasks: BackgroundTasks):
+async def run_followups():
+    import threading
     due = get_pending_followups()
     print(f"Follow-up cron triggered: {len(due)} due")
-    background_tasks.add_task(_run_followups_sync)
+    t = threading.Thread(target=_run_followups_sync)
+    t.daemon = True
+    t.start()
+    return JSONResponse({"ok": True, "queued": len(due)})
+
+@app.get("/cron/followups")
+async def run_followups_get():
+    import threading
+    due = get_pending_followups()
+    print(f"Follow-up cron triggered (GET): {len(due)} due")
+    t = threading.Thread(target=_run_followups_sync)
+    t.daemon = True
+    t.start()
     return JSONResponse({"ok": True, "queued": len(due)})
