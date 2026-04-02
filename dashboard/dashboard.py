@@ -3567,53 +3567,52 @@ Return ONLY valid JSON: {{"subject":"...","body":"..."}}"""
     return JSONResponse({"ok": True, "sent": sent, "failed": failed,
                          "message": f"{sent} sent, {failed} failed"})
 
+def _run_followups_sync():
+    if not RESEND_API_KEY or not OPENAI_API_KEY:
+        print("Follow-up cron: API keys not set")
+        return
+    from openai import OpenAI
+    import resend as _r
+    _r.api_key = RESEND_API_KEY
+    oai = OpenAI(api_key=OPENAI_API_KEY)
+    due = get_pending_followups()
+    sent = failed = 0
+    print(f"Follow-up background processing: {len(due)} due")
+    for lead in due:
+        new_step = lead["step"] + 1
+        label = "follow-up" if new_step == 2 else "final follow-up"
+        prompt = (
+            f"Write a short {label} email to {lead['business']} who didn't reply to our first outreach.\n"
+            f"Problem: {lead['problem']} | Niche: {lead['niche']}\n"
+            f"#{new_step-1} of 2. 2 paragraphs max. Friendly, not pushy. Reference previous outreach.\n"
+            f"CTA: book at https://app.lumeraautomation.com/book. Sign off: Kory, Lumera Automation.\n"
+            f'Return ONLY JSON: {{"subject":"...","body":"..."}}'
+        )
+        try:
+            res = oai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role":"user","content":prompt}],
+                max_tokens=400, temperature=0.8
+            )
+            data = json.loads(res.choices[0].message.content.strip().replace("```json","").replace("```","").strip())
+            _r.Emails.send({
+                "from": f"Kory @ Lumera Automation <{FROM_EMAIL}>",
+                "to": lead["email"],
+                "subject": data["subject"],
+                "html": f"<div style='font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.6'>{data['body'].replace(chr(10),'<br>')}</div>"
+            })
+            mark_followup_sent(lead["id"], new_step)
+            sent += 1
+            print(f"Follow-up sent to {lead['email']} (step {new_step})")
+        except Exception as e:
+            print(f"Follow-up failed for {lead.get('email','?')}: {e}")
+            failed += 1
+    print(f"Follow-up cron done: {sent} sent, {failed} failed")
+
+
 @app.post("/cron/followups")
-async def run_followups():
-    import asyncio
+async def run_followups(background_tasks: BackgroundTasks):
     due = get_pending_followups()
     print(f"Follow-up cron triggered: {len(due)} due")
-
-    async def process_followups():
-        if not RESEND_API_KEY or not OPENAI_API_KEY:
-            print("Follow-up cron: API keys not set")
-            return
-        from openai import OpenAI
-        import resend as _r
-        _r.api_key = RESEND_API_KEY
-        oai = OpenAI(api_key=OPENAI_API_KEY)
-        sent = failed = 0
-        for lead in due:
-            new_step = lead["step"] + 1
-            label = "follow-up" if new_step == 2 else "final follow-up"
-            prompt = (
-                f"Write a short {label} email to {lead['business']} who didn\'t reply to our first outreach.\n"
-                f"Problem: {lead['problem']} | Niche: {lead['niche']}\n"
-                f"#{new_step-1} of 2. 2 paragraphs max. Friendly, not pushy. Reference previous outreach.\n"
-                f"CTA: book at https://app.lumeraautomation.com/book. Sign off: Kory, Lumera Automation.\n"
-                f'Return ONLY JSON: {{"subject":"...","body":"..."}}'
-            )
-            try:
-                res = oai.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role":"user","content":prompt}],
-                    max_tokens=400, temperature=0.8
-                )
-                data = json.loads(res.choices[0].message.content.strip().replace("```json","").replace("```","").strip())
-                _r.Emails.send({
-                    "from": f"Kory @ Lumera Automation <{FROM_EMAIL}>",
-                    "to": lead["email"],
-                    "subject": data["subject"],
-                    "html": f"<div style='font-family:sans-serif;max-width:560px;margin:0 auto;color:#222;line-height:1.6'>{data['body'].replace(chr(10),'<br>')}</div>"
-                })
-                mark_followup_sent(lead["id"], new_step)
-                sent += 1
-                print(f"Follow-up sent to {lead['email']} (step {new_step})")
-            except Exception as e:
-                print(f"Follow-up failed for {lead.get('email','?')}: {e}")
-                failed += 1
-
-        print(f"Follow-up cron done: {sent} sent, {failed} failed")
-
-    # Return immediately, process in background
-    asyncio.create_task(process_followups())
+    background_tasks.add_task(_run_followups_sync)
     return JSONResponse({"ok": True, "queued": len(due)})
