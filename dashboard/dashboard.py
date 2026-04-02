@@ -3301,6 +3301,22 @@ def send_report(username: str, request: Request):
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
+@app.get("/fix-followup-dates")
+def fix_followup_dates():
+    # Fix next_send_at for all step=2 leads that are too far out
+    # Set them to 3 days after enrolled_at instead of 8 days
+    rows = db_query("SELECT id, enrolled_at FROM outreach WHERE step=1 AND replied=0 AND unsubscribed=0")
+    fixed = 0
+    for r in rows:
+        try:
+            enrolled = datetime.fromisoformat(r["enrolled_at"])
+            correct_next = enrolled + timedelta(days=3)
+            db_run("UPDATE outreach SET next_send_at=? WHERE id=?",
+                   (correct_next.isoformat(), r["id"]))
+            fixed += 1
+        except: pass
+    return JSONResponse({"fixed": fixed, "now": datetime.now().isoformat()})
+
 @app.get("/check-outreach")
 def check_outreach():
     rows = db_query("SELECT email, enrolled_at, next_send_at, step FROM outreach ORDER BY enrolled_at LIMIT 20")
